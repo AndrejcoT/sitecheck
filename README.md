@@ -1,4 +1,4 @@
-# sitecheck# sitecheck
+# sitecheck
 
 A pre-deployment checklist CLI for websites, starting with generic website checks and WordPress support.
 
