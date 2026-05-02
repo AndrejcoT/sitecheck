@@ -16,55 +16,52 @@ from .checks_wordpress import (
 from .profiles import detect_profile
 
 
-def print_result(status, message):
-    print(f"{status}: {message}")
+def get_summary(results):
+    summary = {
+        "pass": 0,
+        "warn": 0,
+        "fail": 0,
+    }
 
+    for item in results:
+        status = item["status"].lower()
 
-def print_summary(results):
-    pass_count = sum(1 for status, _ in results if status == "PASS")
-    warn_count = sum(1 for status, _ in results if status == "WARN")
-    fail_count = sum(1 for status, _ in results if status == "FAIL")
+        if status in summary:
+            summary[status] += 1
 
-    print()
-    print("Summary:")
-    print(f"PASS: {pass_count}")
-    print(f"WARN: {warn_count}")
-    print(f"FAIL: {fail_count}")
+    return summary
 
 
 def scan(path):
     path_obj = Path(path)
     results = []
 
-    print("Scanning project...")
-    print(f"Path: {path_obj}")
-    print()
-
     path_exists_result = check_path_exists(path_obj)
     results.append(path_exists_result)
 
-    if path_exists_result[0] == "FAIL":
-        for status, message in results:
-            print_result(status, message)
-        print_summary(results)
-        return
+    if path_exists_result["status"] == "FAIL":
+        return {
+            "path": str(path_obj),
+            "profile": "unknown",
+            "results": results,
+            "summary": get_summary(results),
+        }
 
     is_directory_result = check_is_directory(path_obj)
     results.append(is_directory_result)
 
-    if is_directory_result[0] == "FAIL":
-        for status, message in results:
-            print_result(status, message)
-        print_summary(results)
-        return
+    if is_directory_result["status"] == "FAIL":
+        return {
+            "path": str(path_obj),
+            "profile": "unknown",
+            "results": results,
+            "summary": get_summary(results),
+        }
 
     results.append(check_git_repo(path_obj))
     results.append(check_gitignore(path_obj))
 
     profile = detect_profile(path_obj)
-
-    print(f"Detected profile: {profile}")
-    print()
 
     if profile == "wordpress":
         results.append(check_wp_config(path_obj))
@@ -73,7 +70,9 @@ def scan(path):
         results.append(check_wp_debug(path_obj))
         results.append(check_xmlrpc(path_obj))
 
-    for status, message in results:
-        print_result(status, message)
-
-    print_summary(results)
+    return {
+        "path": str(path_obj),
+        "profile": profile,
+        "results": results,
+        "summary": get_summary(results),
+    }

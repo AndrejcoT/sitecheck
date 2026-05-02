@@ -1,4 +1,6 @@
 import sys
+import json
+
 from .scanner import scan
 
 
@@ -8,11 +10,33 @@ def show_help():
     print("Usage:")
     print("  sitecheck --help")
     print("  sitecheck scan <path>")
+    print("  sitecheck scan <path> --json")
     print()
     print("Commands:")
     print("  scan <path>   Scan the given project path")
     print("  --help        Show this help message")
     print()
+    print("Options:")
+    print("  --json        Output scan results as JSON")
+    print()
+
+
+def render_text(scan_result):
+    print(f"Detected profile: {scan_result['profile']}")
+    print()
+
+    for result in scan_result["results"]:
+        print(f"{result['status']}: {result['message']}")
+
+    print()
+    print("Summary:")
+    print(f"PASS: {scan_result['summary']['pass']}")
+    print(f"WARN: {scan_result['summary']['warn']}")
+    print(f"FAIL: {scan_result['summary']['fail']}")
+
+
+def render_json(scan_result):
+    print(json.dumps(scan_result, indent=2))
 
 
 def main():
@@ -26,15 +50,28 @@ def main():
 
     if command == "--help":
         show_help()
+        return
 
-    elif command == "scan":
+    if command == "scan":
         if len(args) < 2:
             print("Usage: sitecheck scan <path>")
             return
 
         path = args[1]
-        scan(path)
+        json_mode = "--json" in args[2:]
 
-    else:
-        print(f"Unknown command: {command}")
-        print("Try: sitecheck --help")
+        scan_result = scan(path)
+
+        if json_mode:
+            render_json(scan_result)
+        else:
+            render_text(scan_result)
+
+        return
+
+    print(f"Unknown command: {command}")
+    print("Try: sitecheck --help")
+
+
+if __name__ == "__main__":
+    main()
