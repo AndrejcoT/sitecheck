@@ -39,6 +39,13 @@ def render_json(scan_result):
     print(json.dumps(scan_result, indent=2))
 
 
+def exit_code(scan_results):
+    if scan_results["summary"]["fail"] == 0:
+        return 0
+    
+    return 1
+
+
 def main():
     args = sys.argv[1:]
 
@@ -55,7 +62,7 @@ def main():
     if command == "scan":
         if len(args) < 2:
             print("Usage: sitecheck scan <path>")
-            return
+            return 1
 
         path = args[1]
         json_mode = "--json" in args[2:]
@@ -67,11 +74,12 @@ def main():
         else:
             render_text(scan_result)
 
-        return
+        return exit_code(scan_result)
 
     print(f"Unknown command: {command}")
     print("Try: sitecheck --help")
+    return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
