@@ -54,3 +54,85 @@ def check_gitignore(path_obj: Path):
         "status": "WARN",
         "message": ".gitignore file not found",
         }  
+
+def check_env(path_obj: Path):
+    env_file = path_obj / ".env"
+    gitignore_file = path_obj / ".gitignore"
+
+    if not env_file.exists():
+        return {
+            "check": "env_exists",
+            "status": "PASS",
+            "message": ".env file not found",
+        }
+
+    if not gitignore_file.exists():
+        return {
+            "check": "env_exists",
+            "status": "WARN",
+            "message": ".env file found but .gitignore file not found",
+        }
+
+    content = gitignore_file.read_text(encoding="utf-8")
+
+    if ".env" in content:
+        return {
+            "check": "env_exists",
+            "status": "PASS",
+            "message": ".env file found and protected by .gitignore",
+        }
+
+    return {
+        "check": "env_exists",
+        "status": "WARN",
+        "message": ".env file found but not protected by .gitignore",
+    }
+
+def check_suspicious_files(path_obj: Path):
+
+    suspicious_names = [
+        "backup.zip",
+        "backup.tar",
+        "backup.tar.gz",
+        "database.sql",
+        "dump.sql",
+        "site-backup.zip",
+    ]
+
+    suspicious_extensions = [
+        ".sql",
+        ".dump",
+        ".bak",
+        ".backup",
+        ".zip",
+        ".tar",
+        ".gz",
+    ]
+
+    files_found = []
+
+    for item in path_obj.iterdir():
+        if item.is_file():
+            file_name = item.name.lower()
+            extension = item.suffix.lower()
+
+            if file_name in suspicious_names:
+                if item.name not in files_found:
+                    files_found.append(item.name)
+
+            elif extension in suspicious_extensions:
+                if item.name not in files_found:
+                    files_found.append(item.name)
+
+    if files_found:
+        return {
+            "check": "suspicious_files_exists",
+            "status": "WARN",
+            "message": f"Potential backup or dump files found in project root: {', '.join(files_found)}.",
+        }
+
+    return {
+        "check": "suspicious_files_exists",
+        "status": "PASS",
+        "message": "No backup or dump files found in project root",
+    }

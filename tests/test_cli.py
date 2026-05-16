@@ -5,6 +5,8 @@ from sitecheck.checks_generic import (
     check_is_directory,
     check_git_repo,
     check_gitignore,
+    check_env,
+    check_suspicious_files,
 )
 from sitecheck.checks_wordpress import (
     check_wp_config,
@@ -113,6 +115,83 @@ def test_check_gitignore_warn(tmp_path):
 
     assert result["check"] == "gitignore_exists"
     assert result["status"] == "WARN"
+
+
+def test_check_env_pass_when_no_env_file(tmp_path):
+    result = check_env(tmp_path)
+
+    assert result["check"] == "env_exists"
+    assert result["status"] == "PASS"
+
+
+def test_check_env_warn_when_env_exists_but_gitignore_missing(tmp_path):
+    (tmp_path / ".env").write_text("SECRET_KEY=test", encoding="utf-8")
+
+    result = check_env(tmp_path)
+
+    assert result["check"] == "env_exists"
+    assert result["status"] == "WARN"
+
+
+def test_check_env_pass_when_env_exists_and_gitignore_mentions_env(tmp_path):
+    (tmp_path / ".env").write_text("SECRET_KEY=test", encoding="utf-8")
+    (tmp_path / ".gitignore").write_text(".env\n", encoding="utf-8")
+
+    result = check_env(tmp_path)
+
+    assert result["check"] == "env_exists"
+    assert result["status"] == "PASS"
+
+
+def test_check_env_warn_when_env_exists_and_gitignore_does_not_mention_env(tmp_path):
+    (tmp_path / ".env").write_text("SECRET_KEY=test", encoding="utf-8")
+    (tmp_path / ".gitignore").write_text("node_modules/\n", encoding="utf-8")
+
+    result = check_env(tmp_path)
+
+    assert result["check"] == "env_exists"
+    assert result["status"] == "WARN"
+
+
+def test_check_suspicious_files_pass_when_no_suspicious_files_exist(tmp_path):
+    (tmp_path / "index.php").write_text("<?php", encoding="utf-8")
+    (tmp_path / "README.md").write_text("# test", encoding="utf-8")
+
+    result = check_suspicious_files(tmp_path)
+
+    assert result["check"] == "suspicious_files_exists"
+    assert result["status"] == "PASS"
+
+
+def test_check_suspicious_files_warn_for_exact_suspicious_filename(tmp_path):
+    (tmp_path / "backup.zip").write_text("fake backup", encoding="utf-8")
+
+    result = check_suspicious_files(tmp_path)
+
+    assert result["check"] == "suspicious_files_exists"
+    assert result["status"] == "WARN"
+    assert "backup.zip" in result["message"]
+
+
+def test_check_suspicious_files_warn_for_suspicious_extension(tmp_path):
+    (tmp_path / "database.sql").write_text("fake dump", encoding="utf-8")
+
+    result = check_suspicious_files(tmp_path)
+
+    assert result["check"] == "suspicious_files_exists"
+    assert result["status"] == "WARN"
+    assert "database.sql" in result["message"]
+
+
+def test_check_suspicious_files_is_root_only(tmp_path):
+    nested = tmp_path / "subdir"
+    nested.mkdir()
+    (nested / "dump.sql").write_text("fake dump", encoding="utf-8")
+
+    result = check_suspicious_files(tmp_path)
+
+    assert result["check"] == "suspicious_files_exists"
+    assert result["status"] == "PASS"
 
 
 def test_detect_profile_returns_generic_for_normal_project(tmp_path):
@@ -267,7 +346,9 @@ def test_scan_returns_generic_profile_for_normal_project(tmp_path):
 
     assert result["profile"] == "generic"
     assert result["summary"]["fail"] == 0
-    assert len(result["results"]) == 4
+    assert len(result["results"]) == 6
+    assert any(item["check"] == "env_exists" for item in result["results"])
+    assert any(item["check"] == "suspicious_files_exists" for item in result["results"])
 
 
 def test_scan_returns_wordpress_profile_for_wordpress_project(tmp_path):
@@ -285,6 +366,8 @@ def test_scan_returns_wordpress_profile_for_wordpress_project(tmp_path):
     assert any(item["check"] == "wp_config" for item in result["results"])
     assert any(item["check"] == "wp_content" for item in result["results"])
     assert any(item["check"] == "wp_debug" for item in result["results"])
+    assert any(item["check"] == "env_exists" for item in result["results"])
+    assert any(item["check"] == "suspicious_files_exists" for item in result["results"])
 
 
 def test_render_text_outputs_human_readable_summary(capsys):
