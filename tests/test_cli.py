@@ -7,6 +7,8 @@ from sitecheck.checks_generic import (
     check_gitignore,
     check_env,
     check_suspicious_files,
+    check_debug_temp_files,
+    check_public_dev_files,
 )
 from sitecheck.checks_wordpress import (
     check_wp_config,
@@ -194,6 +196,97 @@ def test_check_suspicious_files_is_root_only(tmp_path):
     assert result["status"] == "PASS"
 
 
+def test_check_debug_temp_files_pass_when_no_debug_temp_files_exist(tmp_path):
+    (tmp_path / "index.php").write_text("<?php", encoding="utf-8")
+    (tmp_path / "README.md").write_text("# test", encoding="utf-8")
+
+    result = check_debug_temp_files(tmp_path)
+
+    assert result["check"] == "debug_temp_files_exists"
+    assert result["status"] == "PASS"
+
+
+def test_check_debug_temp_files_warn_for_error_log(tmp_path):
+    (tmp_path / "error.log").write_text("error log", encoding="utf-8")
+
+    result = check_debug_temp_files(tmp_path)
+
+    assert result["check"] == "debug_temp_files_exists"
+    assert result["status"] == "WARN"
+    assert "error.log" in result["message"]
+
+
+def test_check_debug_temp_files_warn_for_debug_tmp(tmp_path):
+    (tmp_path / "debug.tmp").write_text("temporary debug", encoding="utf-8")
+
+    result = check_debug_temp_files(tmp_path)
+
+    assert result["check"] == "debug_temp_files_exists"
+    assert result["status"] == "WARN"
+    assert "debug.tmp" in result["message"]
+
+
+def test_check_debug_temp_files_is_root_only(tmp_path):
+    nested = tmp_path / "assets"
+    nested.mkdir()
+    (nested / "error.log").write_text("error log", encoding="utf-8")
+
+    result = check_debug_temp_files(tmp_path)
+
+    assert result["check"] == "debug_temp_files_exists"
+    assert result["status"] == "PASS"
+
+
+def test_check_public_dev_files_pass_when_no_public_dev_files_exist(tmp_path):
+    (tmp_path / "index.php").write_text("<?php", encoding="utf-8")
+
+    result = check_public_dev_files(tmp_path)
+
+    assert result["check"] == "public_dev_files_exists"
+    assert result["status"] == "PASS"
+
+
+def test_check_public_dev_files_warn_for_phpinfo(tmp_path):
+    (tmp_path / "phpinfo.php").write_text("<?php phpinfo();", encoding="utf-8")
+
+    result = check_public_dev_files(tmp_path)
+
+    assert result["check"] == "public_dev_files_exists"
+    assert result["status"] == "WARN"
+    assert "phpinfo.php" in result["message"]
+
+
+def test_check_public_dev_files_warn_for_debug_php(tmp_path):
+    (tmp_path / "debug.php").write_text("<?php", encoding="utf-8")
+
+    result = check_public_dev_files(tmp_path)
+
+    assert result["check"] == "public_dev_files_exists"
+    assert result["status"] == "WARN"
+    assert "debug.php" in result["message"]
+
+
+def test_check_public_dev_files_warn_for_test_php(tmp_path):
+    (tmp_path / "test.php").write_text("<?php", encoding="utf-8")
+
+    result = check_public_dev_files(tmp_path)
+
+    assert result["check"] == "public_dev_files_exists"
+    assert result["status"] == "WARN"
+    assert "test.php" in result["message"]
+
+
+def test_check_public_dev_files_is_root_only(tmp_path):
+    nested = tmp_path / "assets"
+    nested.mkdir()
+    (nested / "debug.php").write_text("<?php", encoding="utf-8")
+
+    result = check_public_dev_files(tmp_path)
+
+    assert result["check"] == "public_dev_files_exists"
+    assert result["status"] == "PASS"
+
+
 def test_detect_profile_returns_generic_for_normal_project(tmp_path):
     profile = detect_profile(tmp_path)
 
@@ -346,9 +439,11 @@ def test_scan_returns_generic_profile_for_normal_project(tmp_path):
 
     assert result["profile"] == "generic"
     assert result["summary"]["fail"] == 0
-    assert len(result["results"]) == 6
+    assert len(result["results"]) == 8
     assert any(item["check"] == "env_exists" for item in result["results"])
     assert any(item["check"] == "suspicious_files_exists" for item in result["results"])
+    assert any(item["check"] == "debug_temp_files_exists" for item in result["results"])
+    assert any(item["check"] == "public_dev_files_exists" for item in result["results"])
 
 
 def test_scan_returns_wordpress_profile_for_wordpress_project(tmp_path):
@@ -368,6 +463,8 @@ def test_scan_returns_wordpress_profile_for_wordpress_project(tmp_path):
     assert any(item["check"] == "wp_debug" for item in result["results"])
     assert any(item["check"] == "env_exists" for item in result["results"])
     assert any(item["check"] == "suspicious_files_exists" for item in result["results"])
+    assert any(item["check"] == "debug_temp_files_exists" for item in result["results"])
+    assert any(item["check"] == "public_dev_files_exists" for item in result["results"])
 
 
 def test_render_text_outputs_human_readable_summary(capsys):

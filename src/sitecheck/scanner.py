@@ -6,7 +6,9 @@ from .checks_generic import (
     check_git_repo,
     check_gitignore,
     check_env,
-    check_suspicious_files
+    check_suspicious_files,
+    check_debug_temp_files,
+    check_public_dev_files
 )
 from .checks_wordpress import (
     check_wp_config,
@@ -64,6 +66,8 @@ def scan(path):
     results.append(check_gitignore(path_obj))
     results.append(check_env(path_obj))
     results.append(check_suspicious_files(path_obj))
+    results.append(check_debug_temp_files(path_obj))
+    results.append(check_public_dev_files(path_obj))
 
     profile = detect_profile(path_obj)
 

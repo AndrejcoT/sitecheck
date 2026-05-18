@@ -136,3 +136,81 @@ def check_suspicious_files(path_obj: Path):
         "status": "PASS",
         "message": "No backup or dump files found in project root",
     }
+
+def check_debug_temp_files(path_obj: Path):
+
+    suspicious_names = [
+        "error.log",
+        "debug.tmp",
+        "backup.old",
+    ]
+
+    suspicious_extensions = [
+        ".log",
+        ".tmp",
+        ".temp",
+        ".old",
+        ".orig",
+    ]
+
+    files_found = []
+
+    for item in path_obj.iterdir():
+        if item.is_file():
+            file_name = item.name.lower()
+            extension = item.suffix.lower()
+
+            if file_name in suspicious_names:
+                if item.name not in files_found:
+                    files_found.append(item.name)
+
+            elif extension in suspicious_extensions:
+                if item.name not in files_found:
+                    files_found.append(item.name)
+
+    if files_found:
+        return {
+            "check": "debug_temp_files_exists",
+            "status": "WARN",
+            "message": f"Potential debug, log, or temporary files found in project root: {', '.join(files_found)}.",
+        }
+
+    return {
+        "check": "debug_temp_files_exists",
+        "status": "PASS",
+        "message": "No debug, log, or temporary files found in project root",
+    }
+
+from pathlib import Path
+
+
+def check_public_dev_files(path_obj: Path):
+
+    suspicious_names = [
+        "phpinfo.php",
+        "debug.php",
+        "test.php",
+    ]
+
+    files_found = []
+
+    for item in path_obj.iterdir():
+        if item.is_file():
+            file_name = item.name.lower()
+
+            if file_name in suspicious_names:
+                if item.name not in files_found:
+                    files_found.append(item.name)
+
+    if files_found:
+        return {
+            "check": "public_dev_files_exists",
+            "status": "WARN",
+            "message": f"Suspicious public development files found in project root: {', '.join(files_found)}.",
+        }
+
+    return {
+        "check": "public_dev_files_exists",
+        "status": "PASS",
+        "message": "No suspicious public development files found in project root",
+    }
