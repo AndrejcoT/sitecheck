@@ -16,6 +16,9 @@ from sitecheck.checks_wordpress import (
     check_readme_html,
     check_wp_debug,
     check_xmlrpc,
+    check_wp_debug_log,
+    check_wp_debug_display,
+    check_disallow_file_edit,
 )
 from sitecheck.profiles import detect_profile
 from sitecheck.scanner import get_summary, scan
@@ -389,6 +392,123 @@ def test_check_wp_debug_warn_when_not_clearly_found(tmp_path):
     assert "not clearly found" in result["message"]
 
 
+def test_check_wp_debug_log_warn_when_enabled(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "define('WP_DEBUG_LOG', true);",
+        encoding="utf-8",
+    )
+
+    result = check_wp_debug_log(tmp_path)
+
+    assert result["check"] == "wp_debug_log"
+    assert result["status"] == "WARN"
+    assert "enabled" in result["message"]
+
+
+def test_check_wp_debug_log_pass_when_disabled(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "define('WP_DEBUG_LOG', false);",
+        encoding="utf-8",
+    )
+
+    result = check_wp_debug_log(tmp_path)
+
+    assert result["check"] == "wp_debug_log"
+    assert result["status"] == "PASS"
+    assert "disabled" in result["message"]
+
+
+def test_check_wp_debug_log_warn_when_not_clearly_found(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "<?php\n// no debug log setting here",
+        encoding="utf-8",
+    )
+
+    result = check_wp_debug_log(tmp_path)
+
+    assert result["check"] == "wp_debug_log"
+    assert result["status"] == "WARN"
+    assert "not explicitly found" in result["message"]
+
+
+def test_check_wp_debug_display_warn_when_enabled(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "define('WP_DEBUG_DISPLAY', true);",
+        encoding="utf-8",
+    )
+
+    result = check_wp_debug_display(tmp_path)
+
+    assert result["check"] == "wp_debug_display"
+    assert result["status"] == "WARN"
+    assert "enabled" in result["message"]
+
+
+def test_check_wp_debug_display_pass_when_disabled(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "define('WP_DEBUG_DISPLAY', false);",
+        encoding="utf-8",
+    )
+
+    result = check_wp_debug_display(tmp_path)
+
+    assert result["check"] == "wp_debug_display"
+    assert result["status"] == "PASS"
+    assert "disabled" in result["message"]
+
+
+def test_check_wp_debug_display_warn_when_not_clearly_found(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "<?php\n// no debug display setting here",
+        encoding="utf-8",
+    )
+
+    result = check_wp_debug_display(tmp_path)
+
+    assert result["check"] == "wp_debug_display"
+    assert result["status"] == "WARN"
+    assert "not explicitly found" in result["message"]
+
+
+def test_check_disallow_file_edit_pass_when_enabled(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "define('DISALLOW_FILE_EDIT', true);",
+        encoding="utf-8",
+    )
+
+    result = check_disallow_file_edit(tmp_path)
+
+    assert result["check"] == "disallow_file_edit"
+    assert result["status"] == "PASS"
+    assert "enabled" in result["message"]
+
+
+def test_check_disallow_file_edit_warn_when_disabled(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "define('DISALLOW_FILE_EDIT', false);",
+        encoding="utf-8",
+    )
+
+    result = check_disallow_file_edit(tmp_path)
+
+    assert result["check"] == "disallow_file_edit"
+    assert result["status"] == "WARN"
+    assert "disabled" in result["message"]
+
+
+def test_check_disallow_file_edit_warn_when_not_found(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "<?php\n// no file edit setting here",
+        encoding="utf-8",
+    )
+
+    result = check_disallow_file_edit(tmp_path)
+
+    assert result["check"] == "disallow_file_edit"
+    assert result["status"] == "WARN"
+    assert "missing or not configured" in result["message"]
+
+
 def test_check_xmlrpc_warn_when_present(tmp_path):
     (tmp_path / "xmlrpc.php").write_text("<?php")
 
@@ -450,7 +570,12 @@ def test_scan_returns_wordpress_profile_for_wordpress_project(tmp_path):
     (tmp_path / ".git").mkdir()
     (tmp_path / ".gitignore").write_text("")
     (tmp_path / "wp-config.php").write_text(
-        "define('WP_DEBUG', false);",
+        "\n".join([
+            "define('WP_DEBUG', false);",
+            "define('WP_DEBUG_LOG', false);",
+            "define('WP_DEBUG_DISPLAY', false);",
+            "define('DISALLOW_FILE_EDIT', true);",
+        ]),
         encoding="utf-8",
     )
     (tmp_path / "wp-content").mkdir()
@@ -461,6 +586,9 @@ def test_scan_returns_wordpress_profile_for_wordpress_project(tmp_path):
     assert any(item["check"] == "wp_config" for item in result["results"])
     assert any(item["check"] == "wp_content" for item in result["results"])
     assert any(item["check"] == "wp_debug" for item in result["results"])
+    assert any(item["check"] == "wp_debug_log" for item in result["results"])
+    assert any(item["check"] == "wp_debug_display" for item in result["results"])
+    assert any(item["check"] == "disallow_file_edit" for item in result["results"])
     assert any(item["check"] == "env_exists" for item in result["results"])
     assert any(item["check"] == "suspicious_files_exists" for item in result["results"])
     assert any(item["check"] == "debug_temp_files_exists" for item in result["results"])
