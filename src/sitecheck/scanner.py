@@ -16,6 +16,9 @@ from .checks_wordpress import (
     check_readme_html,
     check_wp_debug,
     check_xmlrpc,
+    check_disallow_file_edit,
+    check_wp_debug_display,
+    check_wp_debug_log
 )
 from .profiles import detect_profile
 
@@ -77,7 +80,10 @@ def scan(path):
         results.append(check_readme_html(path_obj))
         results.append(check_wp_debug(path_obj))
         results.append(check_xmlrpc(path_obj))
-
+        results.append(check_disallow_file_edit(path_obj))
+        results.append(check_wp_debug_display(path_obj))
+        results.append(check_wp_debug_log(path_obj))
+    
     return {
         "path": str(path_obj),
         "profile": profile,
