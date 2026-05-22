@@ -1,17 +1,53 @@
 from pathlib import Path
 
+
+def _find_root_files(
+    path_obj: Path,
+    suspicious_names: list[str],
+    suspicious_extensions: list[str] | None = None,
+) -> list[str]:
+    suspicious_extensions = suspicious_extensions or []
+    names = {name.lower() for name in suspicious_names}
+    extensions = {extension.lower() for extension in suspicious_extensions}
+    files_found = set()
+
+    for item in path_obj.iterdir():
+        if not item.is_file():
+            continue
+
+        file_name = item.name.lower()
+        extension = item.suffix.lower()
+
+        if file_name in names or extension in extensions:
+            files_found.add(item.name)
+
+    return sorted(files_found)
+
+
+def _find_root_directories(path_obj: Path, suspicious_names: list[str]) -> list[str]:
+    names = {name.lower() for name in suspicious_names}
+    directories_found = set()
+
+    for item in path_obj.iterdir():
+        if item.is_dir() and item.name.lower() in names:
+            directories_found.add(item.name)
+
+    return sorted(directories_found)
+
+
 def check_path_exists(path_obj: Path):
     if path_obj.exists():
         return {
             "check": "path_exists",
             "status": "PASS",
             "message": "Path exists",
-            }
+        }
+
     return {
         "check": "path_exists",
         "status": "FAIL",
-        "message": "Path does not exists",
-        }   
+        "message": "Path does not exist",
+    }
 
 
 def check_is_directory(path_obj: Path):
@@ -20,12 +56,13 @@ def check_is_directory(path_obj: Path):
             "check": "is_directory",
             "status": "PASS",
             "message": "Path is a directory",
-            }
+        }
+
     return {
         "check": "is_directory",
         "status": "FAIL",
         "message": "Path is not a directory",
-        }  
+    }
 
 
 def check_git_repo(path_obj: Path):
@@ -34,12 +71,13 @@ def check_git_repo(path_obj: Path):
             "check": "git_repository",
             "status": "PASS",
             "message": "Git repository detected",
-            }
+        }
+
     return {
         "check": "git_repository",
         "status": "WARN",
         "message": "Not a git repository",
-        }  
+    }
 
 
 def check_gitignore(path_obj: Path):
@@ -48,12 +86,14 @@ def check_gitignore(path_obj: Path):
             "check": "gitignore_exists",
             "status": "PASS",
             "message": ".gitignore file found",
-            }
+        }
+
     return {
         "check": "gitignore_exists",
         "status": "WARN",
         "message": ".gitignore file not found",
-        }  
+    }
+
 
 def check_env(path_obj: Path):
     env_file = path_obj / ".env"
@@ -88,15 +128,11 @@ def check_env(path_obj: Path):
         "message": ".env file found but not protected by .gitignore",
     }
 
-def check_suspicious_files(path_obj: Path):
 
+def check_suspicious_files(path_obj: Path):
     suspicious_names = [
-        "backup.zip",
-        "backup.tar",
-        "backup.tar.gz",
         "database.sql",
         "dump.sql",
-        "site-backup.zip",
     ]
 
     suspicious_extensions = [
@@ -104,31 +140,20 @@ def check_suspicious_files(path_obj: Path):
         ".dump",
         ".bak",
         ".backup",
-        ".zip",
-        ".tar",
-        ".gz",
     ]
 
-    files_found = []
-
-    for item in path_obj.iterdir():
-        if item.is_file():
-            file_name = item.name.lower()
-            extension = item.suffix.lower()
-
-            if file_name in suspicious_names:
-                if item.name not in files_found:
-                    files_found.append(item.name)
-
-            elif extension in suspicious_extensions:
-                if item.name not in files_found:
-                    files_found.append(item.name)
+    files_found = _find_root_files(
+        path_obj,
+        suspicious_names,
+        suspicious_extensions,
+    )
 
     if files_found:
         return {
             "check": "suspicious_files_exists",
             "status": "WARN",
-            "message": f"Potential backup or dump files found in project root: {', '.join(files_found)}.",
+            "message": "Potential backup or dump files found in project root",
+            "details": ", ".join(files_found),
         }
 
     return {
@@ -137,8 +162,8 @@ def check_suspicious_files(path_obj: Path):
         "message": "No backup or dump files found in project root",
     }
 
-def check_debug_temp_files(path_obj: Path):
 
+def check_debug_temp_files(path_obj: Path):
     suspicious_names = [
         "error.log",
         "debug.tmp",
@@ -153,26 +178,18 @@ def check_debug_temp_files(path_obj: Path):
         ".orig",
     ]
 
-    files_found = []
-
-    for item in path_obj.iterdir():
-        if item.is_file():
-            file_name = item.name.lower()
-            extension = item.suffix.lower()
-
-            if file_name in suspicious_names:
-                if item.name not in files_found:
-                    files_found.append(item.name)
-
-            elif extension in suspicious_extensions:
-                if item.name not in files_found:
-                    files_found.append(item.name)
+    files_found = _find_root_files(
+        path_obj,
+        suspicious_names,
+        suspicious_extensions,
+    )
 
     if files_found:
         return {
             "check": "debug_temp_files_exists",
             "status": "WARN",
-            "message": f"Potential debug, log, or temporary files found in project root: {', '.join(files_found)}.",
+            "message": "Potential debug, log, or temporary files found in project root",
+            "details": ", ".join(files_found),
         }
 
     return {
@@ -181,36 +198,148 @@ def check_debug_temp_files(path_obj: Path):
         "message": "No debug, log, or temporary files found in project root",
     }
 
-from pathlib import Path
-
 
 def check_public_dev_files(path_obj: Path):
-
     suspicious_names = [
         "phpinfo.php",
         "debug.php",
         "test.php",
     ]
 
-    files_found = []
-
-    for item in path_obj.iterdir():
-        if item.is_file():
-            file_name = item.name.lower()
-
-            if file_name in suspicious_names:
-                if item.name not in files_found:
-                    files_found.append(item.name)
+    files_found = _find_root_files(path_obj, suspicious_names)
 
     if files_found:
         return {
             "check": "public_dev_files_exists",
             "status": "WARN",
-            "message": f"Suspicious public development files found in project root: {', '.join(files_found)}.",
+            "message": "Suspicious public development files found in project root",
+            "details": ", ".join(files_found),
         }
 
     return {
         "check": "public_dev_files_exists",
         "status": "PASS",
         "message": "No suspicious public development files found in project root",
+    }
+
+
+def check_composer_files(path_obj: Path):
+    composer_lock = path_obj / "composer.lock"
+    composer_json = path_obj / "composer.json"
+
+    if composer_lock.exists() and not composer_json.exists():
+        return {
+            "check": "composer_files",
+            "status": "WARN",
+            "message": "composer.lock found but composer.json is missing",
+        }
+
+    return {
+        "check": "composer_files",
+        "status": "PASS",
+        "message": "Composer files look consistent",
+    }
+
+
+def check_package_files(path_obj: Path):
+    package_lock = path_obj / "package-lock.json"
+    package_json = path_obj / "package.json"
+
+    if package_lock.exists() and not package_json.exists():
+        return {
+            "check": "package_files",
+            "status": "WARN",
+            "message": "package-lock.json found but package.json is missing",
+        }
+
+    return {
+        "check": "package_files",
+        "status": "PASS",
+        "message": "Package files look consistent",
+    }
+
+
+def check_system_files(path_obj: Path):
+    suspicious_names = [
+        ".ds_store",
+        "thumbs.db",
+    ]
+
+    files_found = _find_root_files(path_obj, suspicious_names)
+
+    if files_found:
+        return {
+            "check": "system_files",
+            "status": "WARN",
+            "message": "System files found in project root",
+            "details": ", ".join(files_found),
+        }
+
+    return {
+        "check": "system_files",
+        "status": "PASS",
+        "message": "No system files found in project root",
+    }
+
+
+def check_node_modules(path_obj: Path):
+    node_modules_path = path_obj / "node_modules"
+
+    if node_modules_path.exists() and node_modules_path.is_dir():
+        return {
+            "check": "node_modules",
+            "status": "WARN",
+            "message": "node_modules directory found in project root",
+        }
+
+    return {
+        "check": "node_modules",
+        "status": "PASS",
+        "message": "node_modules directory not found in project root",
+    }
+
+
+def check_editor_directories(path_obj: Path):
+    suspicious_names = [
+        ".idea",
+        ".vscode",
+    ]
+
+    directories_found = _find_root_directories(path_obj, suspicious_names)
+
+    if directories_found:
+        return {
+            "check": "editor_directories",
+            "status": "WARN",
+            "message": "Editor directories found in project root",
+            "details": ", ".join(directories_found),
+        }
+
+    return {
+        "check": "editor_directories",
+        "status": "PASS",
+        "message": "No editor directories found in project root",
+    }
+
+
+def check_error_logs(path_obj: Path):
+    suspicious_names = [
+        "error_log",
+        "debug.log",
+    ]
+
+    files_found = _find_root_files(path_obj, suspicious_names)
+
+    if files_found:
+        return {
+            "check": "error_logs",
+            "status": "WARN",
+            "message": "Specific error log files found in project root",
+            "details": ", ".join(files_found),
+        }
+
+    return {
+        "check": "error_logs",
+        "status": "PASS",
+        "message": "No specific error log files found in project root",
     }

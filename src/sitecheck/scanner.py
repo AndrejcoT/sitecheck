@@ -8,7 +8,13 @@ from .checks_generic import (
     check_env,
     check_suspicious_files,
     check_debug_temp_files,
-    check_public_dev_files
+    check_public_dev_files,
+    check_composer_files,
+    check_package_files,
+    check_system_files,
+    check_node_modules,
+    check_editor_directories,
+    check_error_logs,
 )
 from .checks_wordpress import (
     check_wp_config,
@@ -18,9 +24,48 @@ from .checks_wordpress import (
     check_xmlrpc,
     check_disallow_file_edit,
     check_wp_debug_display,
-    check_wp_debug_log
+    check_wp_debug_log,
+    check_wp_config_sample,
+    check_wp_license,
+    check_wp_install_files,
+    check_wp_environment_type,
+    check_script_debug,
+    check_display_errors,
 )
 from .profiles import detect_profile
+
+
+GENERIC_CHECKS = (
+    check_git_repo,
+    check_gitignore,
+    check_env,
+    check_suspicious_files,
+    check_debug_temp_files,
+    check_public_dev_files,
+    check_composer_files,
+    check_package_files,
+    check_system_files,
+    check_node_modules,
+    check_editor_directories,
+    check_error_logs,
+)
+
+WORDPRESS_CHECKS = (
+    check_wp_config,
+    check_wp_content,
+    check_readme_html,
+    check_wp_debug,
+    check_wp_debug_log,
+    check_wp_debug_display,
+    check_disallow_file_edit,
+    check_xmlrpc,
+    check_wp_config_sample,
+    check_wp_license,
+    check_wp_install_files,
+    check_wp_environment_type,
+    check_script_debug,
+    check_display_errors,
+)
 
 
 def get_summary(results):
@@ -39,6 +84,28 @@ def get_summary(results):
     return summary
 
 
+def get_verdict(summary):
+    if summary["fail"] > 0:
+        return "not_ready"
+
+    if summary["warn"] > 0:
+        return "ready_with_warnings"
+
+    return "ready"
+
+
+def _build_scan_result(path_obj, profile, results):
+    summary = get_summary(results)
+
+    return {
+        "path": str(path_obj),
+        "profile": profile,
+        "results": results,
+        "summary": summary,
+        "verdict": get_verdict(summary),
+    }
+
+
 def scan(path):
     path_obj = Path(path)
     results = []
@@ -47,46 +114,21 @@ def scan(path):
     results.append(path_exists_result)
 
     if path_exists_result["status"] == "FAIL":
-        return {
-            "path": str(path_obj),
-            "profile": "unknown",
-            "results": results,
-            "summary": get_summary(results),
-        }
+        return _build_scan_result(path_obj, "unknown", results)
 
     is_directory_result = check_is_directory(path_obj)
     results.append(is_directory_result)
 
     if is_directory_result["status"] == "FAIL":
-        return {
-            "path": str(path_obj),
-            "profile": "unknown",
-            "results": results,
-            "summary": get_summary(results),
-        }
+        return _build_scan_result(path_obj, "unknown", results)
 
-    results.append(check_git_repo(path_obj))
-    results.append(check_gitignore(path_obj))
-    results.append(check_env(path_obj))
-    results.append(check_suspicious_files(path_obj))
-    results.append(check_debug_temp_files(path_obj))
-    results.append(check_public_dev_files(path_obj))
+    for check in GENERIC_CHECKS:
+        results.append(check(path_obj))
 
     profile = detect_profile(path_obj)
 
     if profile == "wordpress":
-        results.append(check_wp_config(path_obj))
-        results.append(check_wp_content(path_obj))
-        results.append(check_readme_html(path_obj))
-        results.append(check_wp_debug(path_obj))
-        results.append(check_xmlrpc(path_obj))
-        results.append(check_disallow_file_edit(path_obj))
-        results.append(check_wp_debug_display(path_obj))
-        results.append(check_wp_debug_log(path_obj))
-    
-    return {
-        "path": str(path_obj),
-        "profile": profile,
-        "results": results,
-        "summary": get_summary(results),
-    }
+        for check in WORDPRESS_CHECKS:
+            results.append(check(path_obj))
+
+    return _build_scan_result(path_obj, profile, results)

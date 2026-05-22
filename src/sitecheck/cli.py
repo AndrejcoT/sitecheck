@@ -6,6 +6,7 @@ from .scanner import scan
 
 def show_help():
     print("sitecheck - pre-deployment checker for websites")
+    print("Scans a project folder and reports PASS, WARN, and FAIL results.")
     print()
     print("Usage:")
     print("  sitecheck --help")
@@ -17,16 +18,20 @@ def show_help():
     print("  --help        Show this help message")
     print()
     print("Options:")
-    print("  --json        Output scan results as JSON")
+    print("  --json        Output scan results as JSON for automation")
     print()
 
 
 def render_text(scan_result):
     print(f"Detected profile: {scan_result['profile']}")
+    if "verdict" in scan_result:
+        print(f"Verdict: {scan_result['verdict']}")
     print()
 
     for result in scan_result["results"]:
         print(f"{result['status']}: {result['message']}")
+        if "details" in result:
+            print(f"  Details: {result['details']}")
 
     print()
     print("Summary:")

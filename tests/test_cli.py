@@ -9,6 +9,12 @@ from sitecheck.checks_generic import (
     check_suspicious_files,
     check_debug_temp_files,
     check_public_dev_files,
+    check_composer_files,
+    check_package_files,
+    check_system_files,
+    check_node_modules,
+    check_editor_directories,
+    check_error_logs,
 )
 from sitecheck.checks_wordpress import (
     check_wp_config,
@@ -19,9 +25,15 @@ from sitecheck.checks_wordpress import (
     check_wp_debug_log,
     check_wp_debug_display,
     check_disallow_file_edit,
+    check_wp_config_sample,
+    check_wp_license,
+    check_wp_install_files,
+    check_wp_environment_type,
+    check_script_debug,
+    check_display_errors,
 )
 from sitecheck.profiles import detect_profile
-from sitecheck.scanner import get_summary, scan
+from sitecheck.scanner import get_summary, get_verdict, scan
 from sitecheck.cli import render_text, render_json, exit_code
 
 
@@ -169,13 +181,13 @@ def test_check_suspicious_files_pass_when_no_suspicious_files_exist(tmp_path):
 
 
 def test_check_suspicious_files_warn_for_exact_suspicious_filename(tmp_path):
-    (tmp_path / "backup.zip").write_text("fake backup", encoding="utf-8")
+    (tmp_path / "dump.sql").write_text("fake dump", encoding="utf-8")
 
     result = check_suspicious_files(tmp_path)
 
     assert result["check"] == "suspicious_files_exists"
     assert result["status"] == "WARN"
-    assert "backup.zip" in result["message"]
+    assert "dump.sql" in result["details"]
 
 
 def test_check_suspicious_files_warn_for_suspicious_extension(tmp_path):
@@ -185,7 +197,25 @@ def test_check_suspicious_files_warn_for_suspicious_extension(tmp_path):
 
     assert result["check"] == "suspicious_files_exists"
     assert result["status"] == "WARN"
-    assert "database.sql" in result["message"]
+    assert "database.sql" in result["details"]
+
+
+def test_check_suspicious_files_does_not_warn_for_zip_file(tmp_path):
+    (tmp_path / "backup.zip").write_text("fake backup", encoding="utf-8")
+
+    result = check_suspicious_files(tmp_path)
+
+    assert result["check"] == "suspicious_files_exists"
+    assert result["status"] == "PASS"
+
+
+def test_check_suspicious_files_sorts_details(tmp_path):
+    (tmp_path / "z.dump").write_text("fake dump", encoding="utf-8")
+    (tmp_path / "a.sql").write_text("fake dump", encoding="utf-8")
+
+    result = check_suspicious_files(tmp_path)
+
+    assert result["details"] == "a.sql, z.dump"
 
 
 def test_check_suspicious_files_is_root_only(tmp_path):
@@ -216,7 +246,7 @@ def test_check_debug_temp_files_warn_for_error_log(tmp_path):
 
     assert result["check"] == "debug_temp_files_exists"
     assert result["status"] == "WARN"
-    assert "error.log" in result["message"]
+    assert "error.log" in result["details"]
 
 
 def test_check_debug_temp_files_warn_for_debug_tmp(tmp_path):
@@ -226,7 +256,7 @@ def test_check_debug_temp_files_warn_for_debug_tmp(tmp_path):
 
     assert result["check"] == "debug_temp_files_exists"
     assert result["status"] == "WARN"
-    assert "debug.tmp" in result["message"]
+    assert "debug.tmp" in result["details"]
 
 
 def test_check_debug_temp_files_is_root_only(tmp_path):
@@ -256,7 +286,7 @@ def test_check_public_dev_files_warn_for_phpinfo(tmp_path):
 
     assert result["check"] == "public_dev_files_exists"
     assert result["status"] == "WARN"
-    assert "phpinfo.php" in result["message"]
+    assert "phpinfo.php" in result["details"]
 
 
 def test_check_public_dev_files_warn_for_debug_php(tmp_path):
@@ -266,7 +296,7 @@ def test_check_public_dev_files_warn_for_debug_php(tmp_path):
 
     assert result["check"] == "public_dev_files_exists"
     assert result["status"] == "WARN"
-    assert "debug.php" in result["message"]
+    assert "debug.php" in result["details"]
 
 
 def test_check_public_dev_files_warn_for_test_php(tmp_path):
@@ -276,7 +306,7 @@ def test_check_public_dev_files_warn_for_test_php(tmp_path):
 
     assert result["check"] == "public_dev_files_exists"
     assert result["status"] == "WARN"
-    assert "test.php" in result["message"]
+    assert "test.php" in result["details"]
 
 
 def test_check_public_dev_files_is_root_only(tmp_path):
@@ -288,6 +318,73 @@ def test_check_public_dev_files_is_root_only(tmp_path):
 
     assert result["check"] == "public_dev_files_exists"
     assert result["status"] == "PASS"
+
+
+def test_check_composer_files_warn_when_lock_exists_without_json(tmp_path):
+    (tmp_path / "composer.lock").write_text("{}", encoding="utf-8")
+
+    result = check_composer_files(tmp_path)
+
+    assert result["check"] == "composer_files"
+    assert result["status"] == "WARN"
+
+
+def test_check_composer_files_pass_when_files_are_consistent(tmp_path):
+    (tmp_path / "composer.lock").write_text("{}", encoding="utf-8")
+    (tmp_path / "composer.json").write_text("{}", encoding="utf-8")
+
+    result = check_composer_files(tmp_path)
+
+    assert result["check"] == "composer_files"
+    assert result["status"] == "PASS"
+
+
+def test_check_package_files_warn_when_lock_exists_without_json(tmp_path):
+    (tmp_path / "package-lock.json").write_text("{}", encoding="utf-8")
+
+    result = check_package_files(tmp_path)
+
+    assert result["check"] == "package_files"
+    assert result["status"] == "WARN"
+
+
+def test_check_system_files_warn_when_ds_store_exists(tmp_path):
+    (tmp_path / ".DS_Store").write_text("system file", encoding="utf-8")
+
+    result = check_system_files(tmp_path)
+
+    assert result["check"] == "system_files"
+    assert result["status"] == "WARN"
+    assert ".DS_Store" in result["details"]
+
+
+def test_check_node_modules_warn_when_directory_exists(tmp_path):
+    (tmp_path / "node_modules").mkdir()
+
+    result = check_node_modules(tmp_path)
+
+    assert result["check"] == "node_modules"
+    assert result["status"] == "WARN"
+
+
+def test_check_editor_directories_warn_when_vscode_exists(tmp_path):
+    (tmp_path / ".vscode").mkdir()
+
+    result = check_editor_directories(tmp_path)
+
+    assert result["check"] == "editor_directories"
+    assert result["status"] == "WARN"
+    assert ".vscode" in result["details"]
+
+
+def test_check_error_logs_warn_for_error_log_file(tmp_path):
+    (tmp_path / "error_log").write_text("error log", encoding="utf-8")
+
+    result = check_error_logs(tmp_path)
+
+    assert result["check"] == "error_logs"
+    assert result["status"] == "WARN"
+    assert "error_log" in result["details"]
 
 
 def test_detect_profile_returns_generic_for_normal_project(tmp_path):
@@ -392,6 +489,32 @@ def test_check_wp_debug_warn_when_not_clearly_found(tmp_path):
     assert "not clearly found" in result["message"]
 
 
+def test_check_wp_debug_does_not_match_wp_debug_log(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "define('WP_DEBUG_LOG', true);",
+        encoding="utf-8",
+    )
+
+    result = check_wp_debug(tmp_path)
+
+    assert result["check"] == "wp_debug"
+    assert result["status"] == "WARN"
+    assert "not clearly found" in result["message"]
+
+
+def test_check_wp_debug_does_not_match_wp_debug_display(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "define('WP_DEBUG_DISPLAY', true);",
+        encoding="utf-8",
+    )
+
+    result = check_wp_debug(tmp_path)
+
+    assert result["check"] == "wp_debug"
+    assert result["status"] == "WARN"
+    assert "not clearly found" in result["message"]
+
+
 def test_check_wp_debug_log_warn_when_enabled(tmp_path):
     (tmp_path / "wp-config.php").write_text(
         "define('WP_DEBUG_LOG', true);",
@@ -428,7 +551,7 @@ def test_check_wp_debug_log_warn_when_not_clearly_found(tmp_path):
 
     assert result["check"] == "wp_debug_log"
     assert result["status"] == "WARN"
-    assert "not explicitly found" in result["message"]
+    assert "not clearly found" in result["message"]
 
 
 def test_check_wp_debug_display_warn_when_enabled(tmp_path):
@@ -467,7 +590,7 @@ def test_check_wp_debug_display_warn_when_not_clearly_found(tmp_path):
 
     assert result["check"] == "wp_debug_display"
     assert result["status"] == "WARN"
-    assert "not explicitly found" in result["message"]
+    assert "not clearly found" in result["message"]
 
 
 def test_check_disallow_file_edit_pass_when_enabled(tmp_path):
@@ -509,6 +632,82 @@ def test_check_disallow_file_edit_warn_when_not_found(tmp_path):
     assert "missing or not configured" in result["message"]
 
 
+def test_check_wp_config_sample_warn_when_present(tmp_path):
+    (tmp_path / "wp-config-sample.php").write_text("<?php", encoding="utf-8")
+
+    result = check_wp_config_sample(tmp_path)
+
+    assert result["check"] == "wp_config_sample"
+    assert result["status"] == "WARN"
+
+
+def test_check_wp_license_warn_when_present(tmp_path):
+    (tmp_path / "license.txt").write_text("license", encoding="utf-8")
+
+    result = check_wp_license(tmp_path)
+
+    assert result["check"] == "wp_license"
+    assert result["status"] == "WARN"
+
+
+def test_check_wp_install_files_warn_when_present(tmp_path):
+    (tmp_path / "install.php").write_text("<?php", encoding="utf-8")
+
+    result = check_wp_install_files(tmp_path)
+
+    assert result["check"] == "wp_install_files"
+    assert result["status"] == "WARN"
+    assert "install.php" in result["details"]
+
+
+def test_check_wp_environment_type_pass_when_production(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "define('WP_ENVIRONMENT_TYPE', 'production');",
+        encoding="utf-8",
+    )
+
+    result = check_wp_environment_type(tmp_path)
+
+    assert result["check"] == "wp_environment_type"
+    assert result["status"] == "PASS"
+
+
+def test_check_wp_environment_type_warn_when_development(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "define('WP_ENVIRONMENT_TYPE', 'development');",
+        encoding="utf-8",
+    )
+
+    result = check_wp_environment_type(tmp_path)
+
+    assert result["check"] == "wp_environment_type"
+    assert result["status"] == "WARN"
+
+
+def test_check_script_debug_warn_when_enabled(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "define('SCRIPT_DEBUG', true);",
+        encoding="utf-8",
+    )
+
+    result = check_script_debug(tmp_path)
+
+    assert result["check"] == "script_debug"
+    assert result["status"] == "WARN"
+
+
+def test_check_display_errors_warn_when_enabled(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "ini_set('display_errors', '1');",
+        encoding="utf-8",
+    )
+
+    result = check_display_errors(tmp_path)
+
+    assert result["check"] == "display_errors"
+    assert result["status"] == "WARN"
+
+
 def test_check_xmlrpc_warn_when_present(tmp_path):
     (tmp_path / "xmlrpc.php").write_text("<?php")
 
@@ -542,10 +741,47 @@ def test_get_summary_counts_results_correctly():
     }
 
 
+def test_get_verdict_returns_ready_when_no_warnings_or_failures():
+    summary = {
+        "pass": 3,
+        "warn": 0,
+        "fail": 0,
+    }
+
+    verdict = get_verdict(summary)
+
+    assert verdict == "ready"
+
+
+def test_get_verdict_returns_ready_with_warnings_when_warning_exists():
+    summary = {
+        "pass": 3,
+        "warn": 1,
+        "fail": 0,
+    }
+
+    verdict = get_verdict(summary)
+
+    assert verdict == "ready_with_warnings"
+
+
+def test_get_verdict_returns_not_ready_when_failure_exists():
+    summary = {
+        "pass": 3,
+        "warn": 0,
+        "fail": 1,
+    }
+
+    verdict = get_verdict(summary)
+
+    assert verdict == "not_ready"
+
+
 def test_scan_returns_unknown_profile_for_missing_path():
     result = scan("this_path_should_not_exist_123456789")
 
     assert result["profile"] == "unknown"
+    assert result["verdict"] == "not_ready"
     assert result["summary"]["fail"] >= 1
     assert result["results"][0]["check"] == "path_exists"
     assert result["results"][0]["status"] == "FAIL"
@@ -559,11 +795,18 @@ def test_scan_returns_generic_profile_for_normal_project(tmp_path):
 
     assert result["profile"] == "generic"
     assert result["summary"]["fail"] == 0
-    assert len(result["results"]) == 8
+    assert result["verdict"] == "ready"
+    assert len(result["results"]) == 14
     assert any(item["check"] == "env_exists" for item in result["results"])
     assert any(item["check"] == "suspicious_files_exists" for item in result["results"])
     assert any(item["check"] == "debug_temp_files_exists" for item in result["results"])
     assert any(item["check"] == "public_dev_files_exists" for item in result["results"])
+    assert any(item["check"] == "composer_files" for item in result["results"])
+    assert any(item["check"] == "package_files" for item in result["results"])
+    assert any(item["check"] == "system_files" for item in result["results"])
+    assert any(item["check"] == "node_modules" for item in result["results"])
+    assert any(item["check"] == "editor_directories" for item in result["results"])
+    assert any(item["check"] == "error_logs" for item in result["results"])
 
 
 def test_scan_returns_wordpress_profile_for_wordpress_project(tmp_path):
@@ -575,6 +818,8 @@ def test_scan_returns_wordpress_profile_for_wordpress_project(tmp_path):
             "define('WP_DEBUG_LOG', false);",
             "define('WP_DEBUG_DISPLAY', false);",
             "define('DISALLOW_FILE_EDIT', true);",
+            "define('WP_ENVIRONMENT_TYPE', 'production');",
+            "define('SCRIPT_DEBUG', false);",
         ]),
         encoding="utf-8",
     )
@@ -583,12 +828,19 @@ def test_scan_returns_wordpress_profile_for_wordpress_project(tmp_path):
     result = scan(str(tmp_path))
 
     assert result["profile"] == "wordpress"
+    assert result["verdict"] == "ready"
     assert any(item["check"] == "wp_config" for item in result["results"])
     assert any(item["check"] == "wp_content" for item in result["results"])
     assert any(item["check"] == "wp_debug" for item in result["results"])
     assert any(item["check"] == "wp_debug_log" for item in result["results"])
     assert any(item["check"] == "wp_debug_display" for item in result["results"])
     assert any(item["check"] == "disallow_file_edit" for item in result["results"])
+    assert any(item["check"] == "wp_config_sample" for item in result["results"])
+    assert any(item["check"] == "wp_license" for item in result["results"])
+    assert any(item["check"] == "wp_install_files" for item in result["results"])
+    assert any(item["check"] == "wp_environment_type" for item in result["results"])
+    assert any(item["check"] == "script_debug" for item in result["results"])
+    assert any(item["check"] == "display_errors" for item in result["results"])
     assert any(item["check"] == "env_exists" for item in result["results"])
     assert any(item["check"] == "suspicious_files_exists" for item in result["results"])
     assert any(item["check"] == "debug_temp_files_exists" for item in result["results"])
