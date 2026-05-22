@@ -1,71 +1,143 @@
 # Roadmap
 
+## Current Status
+
+`sitecheck` is an active early-stage Python CLI tool for pre-deployment website checks.
+
+The project already includes:
+
+- Python package structure
+- working CLI entry point
+- `sitecheck scan <path>`
+- generic website checks
+- WordPress profile detection
+- WordPress-specific checks
+- structured scan results
+- human-readable terminal output
+- JSON output
+- summary counts
+- scan verdicts
+- exit-code behavior
+- automated tests with `pytest`
+- GitHub Actions CI for push and pull requests
+
+The project is no longer only in the foundation stage. The foundation is working, and the next focus is improving quality, usefulness, and maintainability.
+
+---
+
 ## Now
 
-### Foundation
-- Create repository structure
-- Set up Python package layout
-- Add `pyproject.toml`
-- Create initial docs
-- Create GitHub issue/project workflow
+### Project cleanup and documentation
 
-### CLI foundation
-- Create `sitecheck` package
-- Add `cli.py`
-- Add `main()` function
-- Make `sitecheck --help` work
-- Make `sitecheck scan <path>` work with placeholder output
+- Keep README accurate with current features
+- Add a real `CHANGELOG.md`
+- Add a basic `CONTRIBUTING.md`
+- Improve docs and examples
+- Keep weekly devlogs updated
+
+### Test organization
+
+- Split the large test file into smaller focused files
+- Keep existing test behavior unchanged during the split
+- Make tests easier to navigate as the project grows
+
+Possible test split:
+
+- `tests/test_cli.py`
+- `tests/test_scanner.py`
+- `tests/test_profiles.py`
+- `tests/test_checks_generic.py`
+- `tests/test_checks_wordpress.py`
+
+### Existing check improvements
+
+- Review current generic checks for message consistency
+- Review current WordPress checks for message consistency
+- Make warning messages more helpful and actionable
+- Avoid adding too many new checks before cleaning the current ones
+
+---
 
 ## Next
 
-### Generic website support
-- Add more generic checks
-- Add simple structure validation
-- Add debug/dev artifact warnings
-- Add backup-related warning logic
-- Improve CLI help and output clarity
+### More useful generic website checks
 
-### WordPress support
-- Detect WordPress root
-- Check for `wp-config.php`
-- Check for `wp-content`
-- Add `WP_DEBUG` warning
-- Add `readme.html` warning
-- Add optional WP-CLI detection
+- Improve detection of risky root files
+- Add clearer handling for common deployment artifacts
+- Improve Composer and npm-related checks
+- Add more practical examples for generic projects
 
-### Project quality
-- Add tests
-- Improve docs
-- Add examples folder content
-- Keep devlog updated
-- Start collecting reusable post ideas from progress
+### More useful WordPress checks
+
+- Improve WordPress hardening checks
+- Add safer handling of `wp-config.php` parsing
+- Consider optional WP-CLI detection
+- Consider checks for common risky WordPress files or settings
+- Keep WordPress checks practical and not overly aggressive
+
+### Developer experience
+
+- Improve CLI help text
+- Improve output clarity
+- Add more README examples
+- Add example project folders for testing/demo purposes
+- Keep CLI help and version output accurate
+
+---
 
 ## Later
 
-### Static site profile
-- Detect static site structure
-- Check for `index.html`
-- Check for assets/build output
-- Warn on obvious deployment mistakes
+### Configuration support
 
-### Better developer experience
-- Add config file support
-- Add JSON output
-- Add ignore rules
-- Improve result formatting
+- Add optional config file support
+- Allow users to ignore selected checks
+- Allow users to adjust warning behavior
+- Keep default behavior simple
 
-### GitHub integration
-- Add GitHub Actions for linting and tests
-- Add release workflow later
-- Prepare the project for open-source contributions
+### More profiles
 
-### Future possible growth
-- PHP profile
-- Node profile
+Possible future profiles:
+
+- static site profile
+- PHP project profile
+- Node project profile
+
+These should only be added when the generic and WordPress profiles feel stable.
+
+### CI improvements
+
+- Consider testing multiple Python versions
+- Consider adding linting later
+- Consider adding formatting checks later
+- Consider coverage reporting later
+
+Do not add these too early. The current priority is useful checks and clean structure.
+
+### Release preparation
+
+- Improve package metadata
+- Add release notes
+- Prepare for tagged releases
+- Consider publishing later only if the tool becomes useful enough
+
+---
+
+## Future Possible Growth
+
+Longer-term ideas:
+
+- backend/environment checks
+- database-related deployment checks
 - CI-focused output improvements
-- more advanced deployment guidance
+- deployment checklist generation
+- more advanced WordPress security checks
+- integration with real deployment workflows
 
-## Rules for roadmap decisions
+These are not immediate priorities.
+
+---
+
+## Rules for Roadmap Decisions
 
 When adding features, follow these rules:
 
@@ -77,4 +149,7 @@ When adding features, follow these rules:
    - improve the CLI foundation,
    - improve generic checks,
    - improve WordPress support,
+   - improve test quality,
    - or improve usability and documentation.
+6. Do not add complex features before the current structure is clean.
+7. Green tests should remain the baseline after every change.

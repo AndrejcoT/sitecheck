@@ -76,7 +76,7 @@ def check_git_repo(path_obj: Path):
     return {
         "check": "git_repository",
         "status": "WARN",
-        "message": "Not a git repository",
+        "message": "Not a git repository; consider initializing git before production deployment",
     }
 
 
@@ -91,7 +91,7 @@ def check_gitignore(path_obj: Path):
     return {
         "check": "gitignore_exists",
         "status": "WARN",
-        "message": ".gitignore file not found",
+        "message": ".gitignore file not found; consider adding one before production deployment",
     }
 
 
@@ -110,7 +110,7 @@ def check_env(path_obj: Path):
         return {
             "check": "env_exists",
             "status": "WARN",
-            "message": ".env file found but .gitignore file not found",
+            "message": ".env file found but .gitignore file not found; consider adding .env to .gitignore before production deployment",
         }
 
     content = gitignore_file.read_text(encoding="utf-8")
@@ -125,21 +125,31 @@ def check_env(path_obj: Path):
     return {
         "check": "env_exists",
         "status": "WARN",
-        "message": ".env file found but not protected by .gitignore",
+        "message": ".env file found but not protected by .gitignore; consider adding .env to .gitignore before production deployment",
     }
 
 
 def check_suspicious_files(path_obj: Path):
     suspicious_names = [
-        "database.sql",
-        "dump.sql",
+        "backup.zip",
+        "site-backup.zip",
+        "site_backup.zip",
+        "website-backup.zip",
+        "website_backup.zip",
+        "backup.tar",
+        "backup.tar.gz",
+        "archive.zip",
+        "archive.tar",
+        "archive.tar.gz",
     ]
 
     suspicious_extensions = [
-        ".sql",
-        ".dump",
         ".bak",
         ".backup",
+        ".zip",
+        ".tar",
+        ".rar",
+        ".7z",
     ]
 
     files_found = _find_root_files(
@@ -152,26 +162,79 @@ def check_suspicious_files(path_obj: Path):
         return {
             "check": "suspicious_files_exists",
             "status": "WARN",
-            "message": "Potential backup or dump files found in project root",
+            "message": "Potential backup or archive files found in project root; consider removing them before production deployment",
             "details": ", ".join(files_found),
         }
 
     return {
         "check": "suspicious_files_exists",
         "status": "PASS",
-        "message": "No backup or dump files found in project root",
+        "message": "No backup or archive files found in project root",
+    }
+
+
+def check_database_files(path_obj: Path):
+    suspicious_names = [
+        "database.sql",
+        "backup.sql",
+        "dump.sql",
+        "db.sql",
+        "local.sql",
+        "dev.sql",
+        "production.sql",
+        "database.dump",
+        "backup.dump",
+        "dump.dump",
+        "local.db",
+        "dev.db",
+        "database.db",
+        "site.db",
+        "local.sqlite",
+        "dev.sqlite",
+        "database.sqlite",
+        "local.sqlite3",
+        "dev.sqlite3",
+        "database.sqlite3",
+    ]
+
+    suspicious_extensions = [
+        ".sql",
+        ".dump",
+        ".db",
+        ".sqlite",
+        ".sqlite3",
+    ]
+
+    files_found = _find_root_files(
+        path_obj,
+        suspicious_names,
+        suspicious_extensions,
+    )
+
+    if files_found:
+        return {
+            "check": "database_files",
+            "status": "WARN",
+            "message": "Potential database files found in project root; consider removing them before production deployment",
+            "details": ", ".join(files_found),
+        }
+
+    return {
+        "check": "database_files",
+        "status": "PASS",
+        "message": "No database files found in project root",
     }
 
 
 def check_debug_temp_files(path_obj: Path):
     suspicious_names = [
-        "error.log",
         "debug.tmp",
+        "test.tmp",
+        "temp.tmp",
         "backup.old",
     ]
 
     suspicious_extensions = [
-        ".log",
         ".tmp",
         ".temp",
         ".old",
@@ -188,14 +251,14 @@ def check_debug_temp_files(path_obj: Path):
         return {
             "check": "debug_temp_files_exists",
             "status": "WARN",
-            "message": "Potential debug, log, or temporary files found in project root",
+            "message": "Potential debug, temporary, or old files found in project root; consider removing them before production deployment",
             "details": ", ".join(files_found),
         }
 
     return {
         "check": "debug_temp_files_exists",
         "status": "PASS",
-        "message": "No debug, log, or temporary files found in project root",
+        "message": "No debug, temporary, or old files found in project root",
     }
 
 
@@ -212,7 +275,7 @@ def check_public_dev_files(path_obj: Path):
         return {
             "check": "public_dev_files_exists",
             "status": "WARN",
-            "message": "Suspicious public development files found in project root",
+            "message": "Suspicious public development files found in project root; consider removing them before production deployment",
             "details": ", ".join(files_found),
         }
 
@@ -231,7 +294,7 @@ def check_composer_files(path_obj: Path):
         return {
             "check": "composer_files",
             "status": "WARN",
-            "message": "composer.lock found but composer.json is missing",
+            "message": "composer.lock found but composer.json is missing; consider restoring composer.json or removing composer.lock before production deployment",
         }
 
     return {
@@ -249,7 +312,7 @@ def check_package_files(path_obj: Path):
         return {
             "check": "package_files",
             "status": "WARN",
-            "message": "package-lock.json found but package.json is missing",
+            "message": "package-lock.json found but package.json is missing; consider restoring package.json or removing package-lock.json before production deployment",
         }
 
     return {
@@ -271,7 +334,7 @@ def check_system_files(path_obj: Path):
         return {
             "check": "system_files",
             "status": "WARN",
-            "message": "System files found in project root",
+            "message": "System files found in project root; consider removing them before production deployment",
             "details": ", ".join(files_found),
         }
 
@@ -289,7 +352,7 @@ def check_node_modules(path_obj: Path):
         return {
             "check": "node_modules",
             "status": "WARN",
-            "message": "node_modules directory found in project root",
+            "message": "node_modules directory found in project root; consider excluding it from deployment artifacts",
         }
 
     return {
@@ -311,7 +374,7 @@ def check_editor_directories(path_obj: Path):
         return {
             "check": "editor_directories",
             "status": "WARN",
-            "message": "Editor directories found in project root",
+            "message": "Editor directories found in project root; consider removing them before production deployment",
             "details": ", ".join(directories_found),
         }
 
@@ -324,6 +387,7 @@ def check_editor_directories(path_obj: Path):
 
 def check_error_logs(path_obj: Path):
     suspicious_names = [
+        "error.log",
         "error_log",
         "debug.log",
     ]
@@ -334,7 +398,7 @@ def check_error_logs(path_obj: Path):
         return {
             "check": "error_logs",
             "status": "WARN",
-            "message": "Specific error log files found in project root",
+            "message": "Specific error log files found in project root; consider removing them before production deployment",
             "details": ", ".join(files_found),
         }
 

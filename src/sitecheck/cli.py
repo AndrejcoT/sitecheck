@@ -5,20 +5,30 @@ from .scanner import scan
 
 
 def show_help():
-    print("sitecheck - pre-deployment checker for websites")
-    print("Scans a project folder and reports PASS, WARN, and FAIL results.")
+    print("sitecheck - pre-deployment checker for websites and WordPress projects")
+    print()
+    print("Scans a project folder and reports common deployment risks as PASS, WARN, and FAIL.")
     print()
     print("Usage:")
     print("  sitecheck --help")
+    print("  sitecheck --version")
     print("  sitecheck scan <path>")
     print("  sitecheck scan <path> --json")
     print()
     print("Commands:")
-    print("  scan <path>   Scan the given project path")
-    print("  --help        Show this help message")
+    print("  scan <path>      Scan the given project path")
     print()
-    print("Options:")
-    print("  --json        Output scan results as JSON for automation")
+    print("Global options:")
+    print("  --help           Show this help message")
+    print("  --version        Show the installed sitecheck version")
+    print()
+    print("Scan options:")
+    print("  --json           Output scan results as JSON for automation")
+    print()
+    print("Examples:")
+    print("  sitecheck scan .")
+    print("  sitecheck scan ./my-site")
+    print("  sitecheck scan ./my-site --json")
     print()
 
 
@@ -51,18 +61,23 @@ def exit_code(scan_results):
     return 1
 
 
-def main():
-    args = sys.argv[1:]
+def main(args=None):
+    if args is None:
+        args = sys.argv[1:]
 
     if len(args) == 0:
         show_help()
-        return
+        return 0
 
     command = args[0]
 
     if command == "--help":
         show_help()
-        return
+        return 0
+    
+    if command == "--version":
+        print("sitecheck 0.1.0")
+        return 0
 
     if command == "scan":
         if len(args) < 2:

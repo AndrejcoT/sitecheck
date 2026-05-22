@@ -63,7 +63,7 @@ def check_readme_html(path_obj: Path):
         return {
             "check": "readme_html",
             "status": "WARN",
-            "message": "readme.html found",
+            "message": "readme.html found; consider removing it before production deployment",
         }
     return {
         "check": "readme_html",
@@ -89,7 +89,7 @@ def check_wp_debug(path_obj: Path):
                 return {
                     "check": "wp_debug",
                     "status": "WARN",
-                    "message": "WP_DEBUG is enabled",
+                    "message": "WP_DEBUG is enabled; consider disabling it before production deployment",
                 }
             if "false" in lower:
                 return {
@@ -101,7 +101,7 @@ def check_wp_debug(path_obj: Path):
     return {
         "check": "wp_debug",
         "status": "WARN",
-        "message": "WP_DEBUG setting not clearly found in wp-config.php",
+        "message": "WP_DEBUG setting not clearly found in wp-config.php; consider explicitly disabling it before production deployment",
     }
 
 
@@ -110,7 +110,7 @@ def check_xmlrpc(path_obj: Path):
         return {
             "check": "xmlrpc",
             "status": "WARN",
-            "message": "xmlrpc.php is present and may be publicly accessible",
+            "message": "xmlrpc.php is present and may be publicly accessible; consider disabling or restricting it before production deployment",
         }
     return {
         "check": "xmlrpc",
@@ -136,7 +136,7 @@ def check_wp_debug_log(path_obj: Path) -> dict:
                 return {
                     "check": "wp_debug_log",
                     "status": "WARN",
-                    "message": "WP_DEBUG_LOG is enabled",
+                    "message": "WP_DEBUG_LOG is enabled; consider disabling it before production deployment",
                 }
             if "false" in lower:
                 return {
@@ -148,7 +148,7 @@ def check_wp_debug_log(path_obj: Path) -> dict:
     return {
         "check": "wp_debug_log",
         "status": "WARN",
-        "message": "WP_DEBUG_LOG setting not clearly found in wp-config.php",
+        "message": "WP_DEBUG_LOG setting not clearly found in wp-config.php; consider explicitly disabling it before production deployment",
     }
 
 
@@ -169,7 +169,7 @@ def check_wp_debug_display(path_obj: Path) -> dict:
                 return {
                     "check": "wp_debug_display",
                     "status": "WARN",
-                    "message": "WP_DEBUG_DISPLAY is enabled",
+                    "message": "WP_DEBUG_DISPLAY is enabled; consider disabling it before production deployment",
                 }
             if "false" in lower:
                 return {
@@ -181,7 +181,7 @@ def check_wp_debug_display(path_obj: Path) -> dict:
     return {
         "check": "wp_debug_display",
         "status": "WARN",
-        "message": "WP_DEBUG_DISPLAY setting not clearly found in wp-config.php",
+        "message": "WP_DEBUG_DISPLAY setting not clearly found in wp-config.php; consider explicitly disabling it before production deployment",
     }
 
 
@@ -208,13 +208,13 @@ def check_disallow_file_edit(path_obj: Path) -> dict:
                 return {
                     "check": "disallow_file_edit",
                     "status": "WARN",
-                    "message": "DISALLOW_FILE_EDIT is disabled",
+                    "message": "DISALLOW_FILE_EDIT is disabled; consider enabling it before production deployment",
                 }
 
     return {
         "check": "disallow_file_edit",
         "status": "WARN",
-        "message": "DISALLOW_FILE_EDIT is missing or not configured",
+        "message": "DISALLOW_FILE_EDIT is missing or not configured; consider enabling it before production deployment",
     }
 
 
@@ -223,7 +223,7 @@ def check_wp_config_sample(path_obj: Path):
         return {
             "check": "wp_config_sample",
             "status": "WARN",
-            "message": "wp-config-sample.php found",
+            "message": "wp-config-sample.php found; consider removing it before production deployment",
         }
     return {
         "check": "wp_config_sample",
@@ -237,7 +237,7 @@ def check_wp_license(path_obj: Path):
         return {
             "check": "wp_license",
             "status": "WARN",
-            "message": "license.txt found",
+            "message": "license.txt found; consider removing it before production deployment",
         }
     return {
         "check": "wp_license",
@@ -269,7 +269,7 @@ def check_wp_install_files(path_obj: Path):
         return {
             "check": "wp_install_files",
             "status": "WARN",
-            "message": "Potential install files found in project root",
+            "message": "Potential install files found in project root; consider removing them before production deployment",
             "details": ", ".join(files_found),
         }
 
@@ -297,7 +297,7 @@ def check_wp_environment_type(path_obj: Path):
                 return {
                     "check": "wp_environment_type",
                     "status": "WARN",
-                    "message": "WP_ENVIRONMENT_TYPE is not production",
+                    "message": "WP_ENVIRONMENT_TYPE is not production; consider setting it to production before production deployment",
                 }
             if "production" in lower:
                 return {
@@ -308,13 +308,13 @@ def check_wp_environment_type(path_obj: Path):
             return {
                 "check": "wp_environment_type",
                 "status": "WARN",
-                "message": "WP_ENVIRONMENT_TYPE setting is not clearly production",
+                "message": "WP_ENVIRONMENT_TYPE setting is not clearly production; consider setting it to production before production deployment",
             }
 
     return {
         "check": "wp_environment_type",
         "status": "WARN",
-        "message": "WP_ENVIRONMENT_TYPE setting not clearly found in wp-config.php",
+        "message": "WP_ENVIRONMENT_TYPE setting not clearly found in wp-config.php; consider setting it to production before production deployment",
     }
 
 
@@ -335,7 +335,7 @@ def check_script_debug(path_obj: Path):
                 return {
                     "check": "script_debug",
                     "status": "WARN",
-                    "message": "SCRIPT_DEBUG is enabled",
+                    "message": "SCRIPT_DEBUG is enabled; consider disabling it before production deployment",
                 }
             if "false" in lower:
                 return {
@@ -368,7 +368,7 @@ def check_display_errors(path_obj: Path):
                 return {
                     "check": "display_errors",
                     "status": "WARN",
-                    "message": "display_errors appears to be enabled",
+                    "message": "display_errors appears to be enabled; consider disabling it before production deployment",
                 }
             if "false" in lower or "'0'" in lower or '"0"' in lower:
                 return {
@@ -379,7 +379,7 @@ def check_display_errors(path_obj: Path):
             return {
                 "check": "display_errors",
                 "status": "WARN",
-                "message": "display_errors setting is present but unclear",
+                "message": "display_errors setting is present but unclear; consider explicitly disabling it before production deployment",
             }
 
     return {

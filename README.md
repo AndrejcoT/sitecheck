@@ -51,5 +51,46 @@ WordPress checks:
 
 Install locally in editable mode with development dependencies:
 
+## Severity Rules
+
+`sitecheck` currently uses a conservative severity model:
+
+- `PASS` means the check found no issue.
+- `WARN` means a possible deployment risk was found, but deployment may still be possible.
+- `FAIL` means a hard blocker was found, such as an invalid path or missing required project structure.
+
+Future versions may promote high-risk warnings to failures, especially for exposed secrets, database dumps, public debug output, or production-dangerous WordPress settings.
+
 ```bash
 python -m pip install -e ".[dev]"
+```
+
+Show help:
+
+```bash
+sitecheck --help
+```
+
+Check the installed version:
+
+```bash
+sitecheck --version
+```
+
+Scan the current directory:
+
+```bash
+sitecheck scan .
+```
+
+Scan the current directory and output JSON:
+
+```bash
+sitecheck scan . --json
+```
+
+Run tests:
+
+```bash
+python -m pytest
+```

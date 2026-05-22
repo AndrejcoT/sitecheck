@@ -15,6 +15,7 @@ from .checks_generic import (
     check_node_modules,
     check_editor_directories,
     check_error_logs,
+    check_database_files,
 )
 from .checks_wordpress import (
     check_wp_config,
@@ -32,6 +33,7 @@ from .checks_wordpress import (
     check_script_debug,
     check_display_errors,
 )
+
 from .profiles import detect_profile
 
 
@@ -48,6 +50,7 @@ GENERIC_CHECKS = (
     check_node_modules,
     check_editor_directories,
     check_error_logs,
+    check_database_files,
 )
 
 WORDPRESS_CHECKS = (
