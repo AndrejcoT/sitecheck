@@ -28,6 +28,16 @@ This project does not have official releases yet. Current changes are tracked un
 - Added automated tests with `pytest`.
 - Added GitHub Actions workflow to run tests on push and pull requests.
 - Added README documentation for usage, testing, and CI.
+- Added database file checks.
+- Added `.htaccess` external redirect checks.
+- Added WordPress `wp-content/debug.log` check.
+- Added WordPress uploads PHP file check.
+- Added WordPress disguised plugin PHP file check.
+- Added WordPress suspicious PHP pattern check.
+- Added optional deep scan mode with `--deep`.
+- Added deep WordPress checks for unexpected PHP files directly inside `wp-content`.
+- Added deep WordPress checks for PHP files inside `wp-content/cache`.
+- Added `.sitecheck.toml` support for ignoring check IDs.
 
 ### Changed
 
@@ -36,6 +46,9 @@ This project does not have official releases yet. Current changes are tracked un
 - Improved WordPress config parsing helpers.
 - Improved generic check helper functions.
 - Updated README to reflect current project status.
+- Improved WordPress profile detection for partial WordPress projects.
+- Improved text output details formatting for multi-item details.
+- Improved text output with verdict guidance for warnings and failures.
 
 ### Fixed
 

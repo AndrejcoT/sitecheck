@@ -9,6 +9,7 @@ from sitecheck.checks_generic import (
     check_error_logs,
     check_git_repo,
     check_gitignore,
+    check_htaccess_external_redirects,
     check_is_directory,
     check_node_modules,
     check_package_files,
@@ -377,4 +378,69 @@ def test_check_database_files_is_root_only(tmp_path):
     result = check_database_files(tmp_path)
 
     assert result["check"] == "database_files"
+    assert result["status"] == "PASS"
+
+
+def test_check_htaccess_external_redirects_pass_when_htaccess_missing(tmp_path):
+    result = check_htaccess_external_redirects(tmp_path)
+
+    assert result["check"] == "htaccess_external_redirects"
+    assert result["status"] == "PASS"
+    assert result["message"] == ".htaccess file not found"
+
+
+def test_check_htaccess_external_redirects_pass_for_normal_wordpress_rules(tmp_path):
+    (tmp_path / ".htaccess").write_text(
+        "\n".join([
+            "# BEGIN WordPress",
+            "RewriteEngine On",
+            "RewriteRule . /index.php [L]",
+            "# END WordPress",
+        ]),
+        encoding="utf-8",
+    )
+
+    result = check_htaccess_external_redirects(tmp_path)
+
+    assert result["check"] == "htaccess_external_redirects"
+    assert result["status"] == "PASS"
+    assert result["message"] == "No external redirects found in .htaccess"
+
+
+def test_check_htaccess_external_redirects_warn_for_external_redirect(tmp_path):
+    (tmp_path / ".htaccess").write_text(
+        "Redirect 301 / https://bad-site.com",
+        encoding="utf-8",
+    )
+
+    result = check_htaccess_external_redirects(tmp_path)
+
+    assert result["check"] == "htaccess_external_redirects"
+    assert result["status"] == "WARN"
+    assert result["message"] == "External redirects found in .htaccess; review them before production deployment"
+    assert "line 1: Redirect 301 / https://bad-site.com" in result["details"]
+
+
+def test_check_htaccess_external_redirects_warn_for_external_rewriterule(tmp_path):
+    (tmp_path / ".htaccess").write_text(
+        "RewriteRule ^(.*)$ https://bad-site.com/$1 [R=301,L]",
+        encoding="utf-8",
+    )
+
+    result = check_htaccess_external_redirects(tmp_path)
+
+    assert result["check"] == "htaccess_external_redirects"
+    assert result["status"] == "WARN"
+    assert "line 1: RewriteRule ^(.*)$ https://bad-site.com/$1 [R=301,L]" in result["details"]
+
+
+def test_check_htaccess_external_redirects_pass_for_commented_external_url(tmp_path):
+    (tmp_path / ".htaccess").write_text(
+        "# Redirect 301 / https://bad-site.com",
+        encoding="utf-8",
+    )
+
+    result = check_htaccess_external_redirects(tmp_path)
+
+    assert result["check"] == "htaccess_external_redirects"
     assert result["status"] == "PASS"

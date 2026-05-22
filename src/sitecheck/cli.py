@@ -1,7 +1,48 @@
 import sys
 import json
+import tomllib
+from pathlib import Path
 
 from .scanner import scan
+
+
+def _detail_items(details):
+    if isinstance(details, list):
+        return [str(item) for item in details]
+
+    if not isinstance(details, str):
+        return [str(details)]
+
+    return [item.strip() for item in details.split(", ") if item.strip()]
+
+
+def _verdict_note(verdict):
+    if verdict == "ready_with_warnings":
+        return "Review WARN items before deployment."
+
+    if verdict == "not_ready":
+        return "Fix FAIL items before deployment."
+
+    return None
+
+
+def load_ignored_checks(path):
+    config_file = Path(path) / ".sitecheck.toml"
+
+    if not config_file.exists():
+        return set()
+
+    try:
+        config = tomllib.loads(config_file.read_text(encoding="utf-8-sig"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return set()
+
+    ignored_checks = config.get("ignore", {}).get("checks", [])
+
+    if not isinstance(ignored_checks, list):
+        return set()
+
+    return {check for check in ignored_checks if isinstance(check, str)}
 
 
 def show_help():
@@ -14,6 +55,7 @@ def show_help():
     print("  sitecheck --version")
     print("  sitecheck scan <path>")
     print("  sitecheck scan <path> --json")
+    print("  sitecheck scan <path> --deep")
     print()
     print("Commands:")
     print("  scan <path>      Scan the given project path")
@@ -24,11 +66,13 @@ def show_help():
     print()
     print("Scan options:")
     print("  --json           Output scan results as JSON for automation")
+    print("  --deep           Run deeper, noisier WordPress checks")
     print()
     print("Examples:")
     print("  sitecheck scan .")
     print("  sitecheck scan ./my-site")
     print("  sitecheck scan ./my-site --json")
+    print("  sitecheck scan ./my-site --deep")
     print()
 
 
@@ -41,13 +85,21 @@ def render_text(scan_result):
     for result in scan_result["results"]:
         print(f"{result['status']}: {result['message']}")
         if "details" in result:
-            print(f"  Details: {result['details']}")
+            print("  Details:")
+            for item in _detail_items(result["details"]):
+                print(f"    - {item}")
 
     print()
     print("Summary:")
     print(f"PASS: {scan_result['summary']['pass']}")
     print(f"WARN: {scan_result['summary']['warn']}")
     print(f"FAIL: {scan_result['summary']['fail']}")
+
+    note = _verdict_note(scan_result.get("verdict"))
+
+    if note:
+        print()
+        print(note)
 
 
 def render_json(scan_result):
@@ -86,8 +138,10 @@ def main(args=None):
 
         path = args[1]
         json_mode = "--json" in args[2:]
+        deep_mode = "--deep" in args[2:]
+        ignored_checks = load_ignored_checks(path)
 
-        scan_result = scan(path)
+        scan_result = scan(path, deep=deep_mode, ignored_checks=ignored_checks)
 
         if json_mode:
             render_json(scan_result)

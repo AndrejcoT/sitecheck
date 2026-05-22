@@ -21,13 +21,15 @@ Generic website checks:
 - Git repository is present
 - `.gitignore` is present
 - `.env` is protected by `.gitignore` when present
-- suspicious backup or dump files in the project root
-- debug, log, or temporary files in the project root
+- suspicious backup or archive files in the project root
 - public development files such as `phpinfo.php`, `debug.php`, and `test.php`
+- external redirects in `.htaccess`
+- database files in the project root
 - Composer and npm lockfile consistency
-- system files such as `.DS_Store` and `Thumbs.db`
 - `node_modules` in the project root
 - editor directories such as `.idea` and `.vscode`
+- system files such as `.DS_Store` and `Thumbs.db`
+- debug, temporary, or old files in the project root
 - specific error log files
 
 WordPress checks:
@@ -46,10 +48,12 @@ WordPress checks:
 - `WP_ENVIRONMENT_TYPE`
 - `SCRIPT_DEBUG`
 - `display_errors`
-
-## Usage
-
-Install locally in editable mode with development dependencies:
+- `wp-content/debug.log`
+- PHP files inside `wp-content/uploads`
+- disguised PHP files inside `wp-content/plugins`
+- suspicious PHP patterns inside `wp-content/uploads`
+- deep scan: unexpected PHP files directly inside `wp-content`
+- deep scan: PHP files inside `wp-content/cache`
 
 ## Severity Rules
 
@@ -60,6 +64,10 @@ Install locally in editable mode with development dependencies:
 - `FAIL` means a hard blocker was found, such as an invalid path or missing required project structure.
 
 Future versions may promote high-risk warnings to failures, especially for exposed secrets, database dumps, public debug output, or production-dangerous WordPress settings.
+
+## Usage
+
+Install locally in editable mode with development dependencies:
 
 ```bash
 python -m pip install -e ".[dev]"
@@ -83,14 +91,40 @@ Scan the current directory:
 sitecheck scan .
 ```
 
+Run deeper, noisier WordPress checks:
+
+```bash
+sitecheck scan . --deep
+```
+
+## Output Modes
+
 Scan the current directory and output JSON:
 
 ```bash
 sitecheck scan . --json
 ```
 
+## Configuration
+
+Ignore checks with `.sitecheck.toml` in the scanned project root:
+
+```toml
+[ignore]
+checks = ["xmlrpc", "node_modules"]
+```
+
+## Testing
+
 Run tests:
 
 ```bash
 python -m pytest
+```
+
+On Windows/OneDrive setups where pytest temp folders can be locked, use a fresh local base temp directory:
+
+```powershell
+$stamp = Get-Date -Format 'yyyyMMddHHmmssfff'
+python -m pytest --basetemp ".pytest_tmp_$stamp"
 ```

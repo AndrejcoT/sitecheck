@@ -1,4 +1,5 @@
 from sitecheck.checks_wordpress import (
+    check_debug_exists,
     check_display_errors,
     check_disallow_file_edit,
     check_readme_html,
@@ -6,12 +7,17 @@ from sitecheck.checks_wordpress import (
     check_wp_config,
     check_wp_config_sample,
     check_wp_content,
+    check_wp_content_php_files,
     check_wp_debug,
     check_wp_debug_display,
     check_wp_debug_log,
     check_wp_environment_type,
     check_wp_install_files,
     check_wp_license,
+    check_wp_cache_php_files,
+    check_wp_plugin_disguised_php_files,
+    check_wp_suspicious_php_patterns,
+    check_wp_uploads_php_files,
     check_xmlrpc,
 )
 
@@ -336,3 +342,224 @@ def test_check_xmlrpc_pass_when_missing(tmp_path):
 
     assert result["check"] == "xmlrpc"
     assert result["status"] == "PASS"
+
+
+def test_check_debug_exists_warn_when_debug_log_exists(tmp_path):
+    wp_content = tmp_path / "wp-content"
+    wp_content.mkdir()
+    (wp_content / "debug.log").write_text("debug output", encoding="utf-8")
+
+    result = check_debug_exists(tmp_path)
+
+    assert result["check"] == "wp_debug_log_file"
+    assert result["status"] == "WARN"
+    assert "wp-content/debug.log found" in result["message"]
+
+
+def test_check_debug_exists_pass_when_debug_log_missing(tmp_path):
+    (tmp_path / "wp-content").mkdir()
+
+    result = check_debug_exists(tmp_path)
+
+    assert result["check"] == "wp_debug_log_file"
+    assert result["status"] == "PASS"
+    assert "not found" in result["message"]
+
+
+def test_check_wp_uploads_php_files_pass_when_uploads_folder_missing(tmp_path):
+    result = check_wp_uploads_php_files(tmp_path)
+
+    assert result["check"] == "wp_uploads_php_files"
+    assert result["status"] == "PASS"
+
+
+def test_check_wp_uploads_php_files_pass_when_uploads_has_no_php_files(tmp_path):
+    uploads = tmp_path / "wp-content" / "uploads"
+    uploads.mkdir(parents=True)
+    (uploads / "logo.png").write_text("image", encoding="utf-8")
+
+    result = check_wp_uploads_php_files(tmp_path)
+
+    assert result["check"] == "wp_uploads_php_files"
+    assert result["status"] == "PASS"
+
+
+def test_check_wp_uploads_php_files_warn_for_php_file_in_uploads(tmp_path):
+    uploads = tmp_path / "wp-content" / "uploads"
+    uploads.mkdir(parents=True)
+    (uploads / "shell.php").write_text("<?php", encoding="utf-8")
+
+    result = check_wp_uploads_php_files(tmp_path)
+
+    assert result["check"] == "wp_uploads_php_files"
+    assert result["status"] == "WARN"
+    assert "wp-content/uploads/shell.php" in result["details"]
+
+
+def test_check_wp_uploads_php_files_warn_for_nested_disguised_php_file(tmp_path):
+    nested_uploads = tmp_path / "wp-content" / "uploads" / "2026" / "05"
+    nested_uploads.mkdir(parents=True)
+    (nested_uploads / "logo.png.php").write_text("<?php", encoding="utf-8")
+
+    result = check_wp_uploads_php_files(tmp_path)
+
+    assert result["check"] == "wp_uploads_php_files"
+    assert result["status"] == "WARN"
+    assert "wp-content/uploads/2026/05/logo.png.php" in result["details"]
+
+
+def test_check_wp_plugin_disguised_php_files_pass_when_plugins_folder_missing(tmp_path):
+    result = check_wp_plugin_disguised_php_files(tmp_path)
+
+    assert result["check"] == "wp_plugin_disguised_php_files"
+    assert result["status"] == "PASS"
+
+
+def test_check_wp_plugin_disguised_php_files_pass_for_normal_plugin_php_file(tmp_path):
+    plugin = tmp_path / "wp-content" / "plugins" / "contact-form-7"
+    plugin.mkdir(parents=True)
+    (plugin / "wp-contact-form-7.php").write_text("<?php", encoding="utf-8")
+
+    result = check_wp_plugin_disguised_php_files(tmp_path)
+
+    assert result["check"] == "wp_plugin_disguised_php_files"
+    assert result["status"] == "PASS"
+
+
+def test_check_wp_plugin_disguised_php_files_pass_for_normal_asset(tmp_path):
+    assets = tmp_path / "wp-content" / "plugins" / "example" / "assets"
+    assets.mkdir(parents=True)
+    (assets / "logo.png").write_text("image", encoding="utf-8")
+
+    result = check_wp_plugin_disguised_php_files(tmp_path)
+
+    assert result["check"] == "wp_plugin_disguised_php_files"
+    assert result["status"] == "PASS"
+
+
+def test_check_wp_plugin_disguised_php_files_warn_for_png_php_file(tmp_path):
+    assets = tmp_path / "wp-content" / "plugins" / "example" / "assets"
+    assets.mkdir(parents=True)
+    (assets / "logo.png.php").write_text("<?php", encoding="utf-8")
+
+    result = check_wp_plugin_disguised_php_files(tmp_path)
+
+    assert result["check"] == "wp_plugin_disguised_php_files"
+    assert result["status"] == "WARN"
+    assert "wp-content/plugins/example/assets/logo.png.php" in result["details"]
+
+
+def test_check_wp_plugin_disguised_php_files_warn_for_jpg_phtml_file(tmp_path):
+    assets = tmp_path / "wp-content" / "plugins" / "example" / "assets"
+    assets.mkdir(parents=True)
+    (assets / "banner.jpg.phtml").write_text("<?php", encoding="utf-8")
+
+    result = check_wp_plugin_disguised_php_files(tmp_path)
+
+    assert result["check"] == "wp_plugin_disguised_php_files"
+    assert result["status"] == "WARN"
+    assert "wp-content/plugins/example/assets/banner.jpg.phtml" in result["details"]
+
+
+def test_check_wp_suspicious_php_patterns_pass_for_clean_php_file(tmp_path):
+    uploads = tmp_path / "wp-content" / "uploads"
+    uploads.mkdir(parents=True)
+    (uploads / "index.php").write_text("<?php echo 'ok';", encoding="utf-8")
+
+    result = check_wp_suspicious_php_patterns(tmp_path)
+
+    assert result["check"] == "wp_suspicious_php_patterns"
+    assert result["status"] == "PASS"
+
+
+def test_check_wp_suspicious_php_patterns_warn_for_admin_user_creation(tmp_path):
+    uploads = tmp_path / "wp-content" / "uploads"
+    uploads.mkdir(parents=True)
+    (uploads / "user.php").write_text(
+        "<?php $user = wp_create_user('name', 'pass'); $user->set_role('administrator');",
+        encoding="utf-8",
+    )
+
+    result = check_wp_suspicious_php_patterns(tmp_path)
+
+    assert result["check"] == "wp_suspicious_php_patterns"
+    assert result["status"] == "WARN"
+    assert "wp-content/uploads/user.php" in result["details"]
+
+
+def test_check_wp_suspicious_php_patterns_warn_for_eval_base64_decode(tmp_path):
+    uploads = tmp_path / "wp-content" / "uploads"
+    uploads.mkdir(parents=True)
+    (uploads / "loader.php").write_text(
+        "<?php eval(base64_decode('ZXZpbA=='));",
+        encoding="utf-8",
+    )
+
+    result = check_wp_suspicious_php_patterns(tmp_path)
+
+    assert result["check"] == "wp_suspicious_php_patterns"
+    assert result["status"] == "WARN"
+    assert "wp-content/uploads/loader.php" in result["details"]
+
+
+def test_check_wp_suspicious_php_patterns_pass_for_base64_decode_alone(tmp_path):
+    uploads = tmp_path / "wp-content" / "uploads"
+    uploads.mkdir(parents=True)
+    (uploads / "helper.php").write_text(
+        "<?php $decoded = base64_decode($value);",
+        encoding="utf-8",
+    )
+
+    result = check_wp_suspicious_php_patterns(tmp_path)
+
+    assert result["check"] == "wp_suspicious_php_patterns"
+    assert result["status"] == "PASS"
+
+
+def test_check_wp_content_php_files_pass_when_wp_content_missing(tmp_path):
+    result = check_wp_content_php_files(tmp_path)
+
+    assert result["check"] == "wp_content_php_files"
+    assert result["status"] == "PASS"
+
+
+def test_check_wp_content_php_files_pass_for_index_php(tmp_path):
+    wp_content = tmp_path / "wp-content"
+    wp_content.mkdir()
+    (wp_content / "index.php").write_text("<?php", encoding="utf-8")
+
+    result = check_wp_content_php_files(tmp_path)
+
+    assert result["check"] == "wp_content_php_files"
+    assert result["status"] == "PASS"
+
+
+def test_check_wp_content_php_files_warn_for_unexpected_php_file(tmp_path):
+    wp_content = tmp_path / "wp-content"
+    wp_content.mkdir()
+    (wp_content / "loader.php").write_text("<?php", encoding="utf-8")
+
+    result = check_wp_content_php_files(tmp_path)
+
+    assert result["check"] == "wp_content_php_files"
+    assert result["status"] == "WARN"
+    assert "wp-content/loader.php" in result["details"]
+
+
+def test_check_wp_cache_php_files_pass_when_cache_missing(tmp_path):
+    result = check_wp_cache_php_files(tmp_path)
+
+    assert result["check"] == "wp_cache_php_files"
+    assert result["status"] == "PASS"
+
+
+def test_check_wp_cache_php_files_warn_for_cache_php_file(tmp_path):
+    cache = tmp_path / "wp-content" / "cache" / "page"
+    cache.mkdir(parents=True)
+    (cache / "payload.php").write_text("<?php", encoding="utf-8")
+
+    result = check_wp_cache_php_files(tmp_path)
+
+    assert result["check"] == "wp_cache_php_files"
+    assert result["status"] == "WARN"
+    assert "wp-content/cache/page/payload.php" in result["details"]

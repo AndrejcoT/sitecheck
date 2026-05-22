@@ -28,6 +28,28 @@ def _line_defines_setting(line: str, setting_name: str) -> bool:
     return pattern.search(line) is not None
 
 
+def _relative_path(path_obj: Path, file_path: Path) -> str:
+    return file_path.relative_to(path_obj).as_posix()
+
+
+def _find_files_by_extensions(root_path: Path, extensions: tuple[str, ...]) -> list[Path]:
+    if not root_path.exists() or not root_path.is_dir():
+        return []
+
+    return sorted(
+        file_path
+        for file_path in root_path.rglob("*")
+        if file_path.is_file() and file_path.suffix.lower() in extensions
+    )
+
+
+def _read_text_safely(file_path: Path) -> str | None:
+    try:
+        return file_path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return None
+
+
 def check_wp_config(path_obj: Path):
     if (path_obj / "wp-config.php").exists():
         return {
@@ -386,4 +408,169 @@ def check_display_errors(path_obj: Path):
         "check": "display_errors",
         "status": "PASS",
         "message": "display_errors setting not found",
+    }
+
+
+def check_debug_exists(path_obj: Path):
+    debug_log = path_obj / "wp-content" / "debug.log"
+
+    if debug_log.exists():
+        return {
+            "check": "wp_debug_log_file",
+            "status": "WARN",
+            "message": "wp-content/debug.log found; consider removing it before production deployment",
+        }
+
+    return {
+        "check": "wp_debug_log_file",
+        "status": "PASS",
+        "message": "wp-content/debug.log not found",
+    }
+
+
+def check_wp_uploads_php_files(path_obj: Path):
+    uploads_path = path_obj / "wp-content" / "uploads"
+    php_extensions = (".php", ".phtml", ".php5", ".phar")
+    files_found = [
+        _relative_path(path_obj, file_path)
+        for file_path in _find_files_by_extensions(uploads_path, php_extensions)
+    ]
+
+    if files_found:
+        return {
+            "check": "wp_uploads_php_files",
+            "status": "WARN",
+            "message": "PHP files found inside wp-content/uploads; review them before production deployment",
+            "details": ", ".join(files_found),
+        }
+
+    return {
+        "check": "wp_uploads_php_files",
+        "status": "PASS",
+        "message": "No PHP files found inside wp-content/uploads",
+    }
+
+
+def check_wp_plugin_disguised_php_files(path_obj: Path):
+    plugins_path = path_obj / "wp-content" / "plugins"
+    media_extensions = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".ico")
+    php_extensions = (".php", ".phtml", ".php5", ".phar")
+    files_found = []
+
+    for file_path in _find_files_by_extensions(plugins_path, php_extensions):
+        file_name = file_path.name.lower()
+
+        if any(f"{media_extension}." in file_name for media_extension in media_extensions):
+            files_found.append(_relative_path(path_obj, file_path))
+
+    if files_found:
+        return {
+            "check": "wp_plugin_disguised_php_files",
+            "status": "WARN",
+            "message": "Disguised PHP files found inside wp-content/plugins; review them before production deployment",
+            "details": ", ".join(files_found),
+        }
+
+    return {
+        "check": "wp_plugin_disguised_php_files",
+        "status": "PASS",
+        "message": "No disguised PHP files found inside wp-content/plugins",
+    }
+
+
+def check_wp_suspicious_php_patterns(path_obj: Path):
+    scan_roots = [
+        path_obj / "wp-content" / "uploads",
+    ]
+    php_extensions = (".php", ".phtml", ".php5", ".phar")
+    files_found = []
+
+    for scan_root in scan_roots:
+        for file_path in _find_files_by_extensions(scan_root, php_extensions):
+            content = _read_text_safely(file_path)
+
+            if content is None:
+                continue
+
+            lower = content.lower()
+
+            has_admin_creation = "wp_create_user" in lower and "administrator" in lower
+            has_factory = re.search(r"\$factory\s*=", content, re.IGNORECASE) is not None
+            has_named_indicator = any(
+                indicator in content
+                for indicator in ("yrxc_uck", "XMAN_Replicator", "NeonMeridian")
+            )
+            has_eval_base64 = "eval" in lower and "base64_decode" in lower
+
+            if has_admin_creation or has_factory or has_named_indicator or has_eval_base64:
+                files_found.append(_relative_path(path_obj, file_path))
+
+    files_found = sorted(files_found)
+
+    if files_found:
+        return {
+            "check": "wp_suspicious_php_patterns",
+            "status": "WARN",
+            "message": "Suspicious PHP patterns found in WordPress files; review them before production deployment",
+            "details": ", ".join(files_found),
+        }
+
+    return {
+        "check": "wp_suspicious_php_patterns",
+        "status": "PASS",
+        "message": "No suspicious PHP patterns found in WordPress files",
+    }
+
+
+def check_wp_content_php_files(path_obj: Path):
+    wp_content_path = path_obj / "wp-content"
+    php_extensions = (".php", ".phtml", ".php5", ".phar")
+    files_found = []
+
+    if wp_content_path.exists() and wp_content_path.is_dir():
+        for file_path in sorted(wp_content_path.iterdir()):
+            if not file_path.is_file():
+                continue
+
+            if file_path.name.lower() == "index.php":
+                continue
+
+            if file_path.suffix.lower() in php_extensions:
+                files_found.append(_relative_path(path_obj, file_path))
+
+    if files_found:
+        return {
+            "check": "wp_content_php_files",
+            "status": "WARN",
+            "message": "Suspicious indicator found in wp-content PHP files; review this before production deployment",
+            "details": ", ".join(files_found),
+        }
+
+    return {
+        "check": "wp_content_php_files",
+        "status": "PASS",
+        "message": "No unexpected PHP files found directly inside wp-content",
+    }
+
+
+def check_wp_cache_php_files(path_obj: Path):
+    cache_path = path_obj / "wp-content" / "cache"
+    php_extensions = (".php", ".phtml", ".php5", ".phar")
+    files_found = [
+        _relative_path(path_obj, file_path)
+        for file_path in _find_files_by_extensions(cache_path, php_extensions)
+    ]
+
+    if files_found:
+        return {
+            "check": "wp_cache_php_files",
+            "status": "WARN",
+            "message": "Suspicious indicator found in wp-content/cache PHP files; review this before production deployment",
+            "details": ", ".join(files_found),
+        }
+
+    return {
+        "check": "wp_cache_php_files",
+        "status": "PASS",
+        "message": "No PHP files found inside wp-content/cache",
     }

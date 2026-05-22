@@ -286,6 +286,56 @@ def check_public_dev_files(path_obj: Path):
     }
 
 
+def check_htaccess_external_redirects(path_obj: Path):
+    htaccess_file = path_obj / ".htaccess"
+
+    if not htaccess_file.exists():
+        return {
+            "check": "htaccess_external_redirects",
+            "status": "PASS",
+            "message": ".htaccess file not found",
+        }
+
+    try:
+        lines = htaccess_file.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except OSError:
+        return {
+            "check": "htaccess_external_redirects",
+            "status": "PASS",
+            "message": "No external redirects found in .htaccess",
+        }
+
+    redirect_directives = ("redirect", "redirectmatch", "rewriterule", "rewritecond")
+    external_redirects = []
+
+    for line_number, line in enumerate(lines, start=1):
+        stripped_line = line.strip()
+        lower_line = stripped_line.lower()
+
+        if not stripped_line or stripped_line.startswith("#"):
+            continue
+
+        starts_with_redirect_directive = lower_line.startswith(redirect_directives)
+        contains_external_url = "http://" in lower_line or "https://" in lower_line
+
+        if starts_with_redirect_directive and contains_external_url:
+            external_redirects.append(f"line {line_number}: {stripped_line}")
+
+    if external_redirects:
+        return {
+            "check": "htaccess_external_redirects",
+            "status": "WARN",
+            "message": "External redirects found in .htaccess; review them before production deployment",
+            "details": ", ".join(external_redirects),
+        }
+
+    return {
+        "check": "htaccess_external_redirects",
+        "status": "PASS",
+        "message": "No external redirects found in .htaccess",
+    }
+
+
 def check_composer_files(path_obj: Path):
     composer_lock = path_obj / "composer.lock"
     composer_json = path_obj / "composer.json"

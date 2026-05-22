@@ -9,6 +9,7 @@ from .checks_generic import (
     check_suspicious_files,
     check_debug_temp_files,
     check_public_dev_files,
+    check_htaccess_external_redirects,
     check_composer_files,
     check_package_files,
     check_system_files,
@@ -32,6 +33,12 @@ from .checks_wordpress import (
     check_wp_environment_type,
     check_script_debug,
     check_display_errors,
+    check_debug_exists,
+    check_wp_uploads_php_files,
+    check_wp_plugin_disguised_php_files,
+    check_wp_suspicious_php_patterns,
+    check_wp_content_php_files,
+    check_wp_cache_php_files,
 )
 
 from .profiles import detect_profile
@@ -42,32 +49,42 @@ GENERIC_CHECKS = (
     check_gitignore,
     check_env,
     check_suspicious_files,
-    check_debug_temp_files,
     check_public_dev_files,
+    check_htaccess_external_redirects,
+    check_database_files,
     check_composer_files,
     check_package_files,
-    check_system_files,
     check_node_modules,
     check_editor_directories,
+    check_system_files,
+    check_debug_temp_files,
     check_error_logs,
-    check_database_files,
 )
 
 WORDPRESS_CHECKS = (
     check_wp_config,
     check_wp_content,
     check_readme_html,
-    check_wp_debug,
-    check_wp_debug_log,
-    check_wp_debug_display,
-    check_disallow_file_edit,
     check_xmlrpc,
     check_wp_config_sample,
     check_wp_license,
     check_wp_install_files,
+    check_wp_debug,
+    check_wp_debug_log,
+    check_wp_debug_display,
     check_wp_environment_type,
     check_script_debug,
     check_display_errors,
+    check_disallow_file_edit,
+    check_debug_exists,
+    check_wp_uploads_php_files,
+    check_wp_plugin_disguised_php_files,
+    check_wp_suspicious_php_patterns,
+)
+
+WORDPRESS_DEEP_CHECKS = (
+    check_wp_content_php_files,
+    check_wp_cache_php_files,
 )
 
 
@@ -109,9 +126,17 @@ def _build_scan_result(path_obj, profile, results):
     }
 
 
-def scan(path):
+def _append_check_result(results, check, path_obj, ignored_checks):
+    result = check(path_obj)
+
+    if result["check"] not in ignored_checks:
+        results.append(result)
+
+
+def scan(path, deep=False, ignored_checks=None):
     path_obj = Path(path)
     results = []
+    ignored_checks = set(ignored_checks or [])
 
     path_exists_result = check_path_exists(path_obj)
     results.append(path_exists_result)
@@ -126,12 +151,16 @@ def scan(path):
         return _build_scan_result(path_obj, "unknown", results)
 
     for check in GENERIC_CHECKS:
-        results.append(check(path_obj))
+        _append_check_result(results, check, path_obj, ignored_checks)
 
     profile = detect_profile(path_obj)
 
     if profile == "wordpress":
         for check in WORDPRESS_CHECKS:
-            results.append(check(path_obj))
+            _append_check_result(results, check, path_obj, ignored_checks)
+
+        if deep:
+            for check in WORDPRESS_DEEP_CHECKS:
+                _append_check_result(results, check, path_obj, ignored_checks)
 
     return _build_scan_result(path_obj, profile, results)

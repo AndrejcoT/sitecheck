@@ -73,11 +73,12 @@ def test_scan_returns_generic_profile_for_normal_project(tmp_path):
     assert result["profile"] == "generic"
     assert result["summary"]["fail"] == 0
     assert result["verdict"] == "ready"
-    assert len(result["results"]) == 15
+    assert len(result["results"]) == 16
     assert any(item["check"] == "env_exists" for item in result["results"])
     assert any(item["check"] == "suspicious_files_exists" for item in result["results"])
     assert any(item["check"] == "debug_temp_files_exists" for item in result["results"])
     assert any(item["check"] == "public_dev_files_exists" for item in result["results"])
+    assert any(item["check"] == "htaccess_external_redirects" for item in result["results"])
     assert any(item["check"] == "composer_files" for item in result["results"])
     assert any(item["check"] == "package_files" for item in result["results"])
     assert any(item["check"] == "system_files" for item in result["results"])
@@ -119,8 +120,89 @@ def test_scan_returns_wordpress_profile_for_wordpress_project(tmp_path):
     assert any(item["check"] == "wp_environment_type" for item in result["results"])
     assert any(item["check"] == "script_debug" for item in result["results"])
     assert any(item["check"] == "display_errors" for item in result["results"])
+    assert any(item["check"] == "wp_debug_log_file" for item in result["results"])
+    assert any(item["check"] == "wp_uploads_php_files" for item in result["results"])
+    assert any(item["check"] == "wp_plugin_disguised_php_files" for item in result["results"])
+    assert any(item["check"] == "wp_suspicious_php_patterns" for item in result["results"])
     assert any(item["check"] == "env_exists" for item in result["results"])
     assert any(item["check"] == "suspicious_files_exists" for item in result["results"])
     assert any(item["check"] == "debug_temp_files_exists" for item in result["results"])
     assert any(item["check"] == "public_dev_files_exists" for item in result["results"])
+    assert any(item["check"] == "htaccess_external_redirects" for item in result["results"])
     assert any(item["check"] == "database_files" for item in result["results"])
+
+
+def test_scan_returns_wordpress_profile_for_partial_wordpress_project(tmp_path):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".gitignore").write_text("")
+    (tmp_path / "wp-content").mkdir()
+
+    result = scan(str(tmp_path))
+
+    assert result["profile"] == "wordpress"
+    assert result["verdict"] == "not_ready"
+    assert any(
+        item["check"] == "wp_config" and item["status"] == "FAIL"
+        for item in result["results"]
+    )
+    assert any(item["check"] == "wp_content" for item in result["results"])
+
+
+def test_scan_does_not_run_deep_wordpress_checks_by_default(tmp_path):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".gitignore").write_text("")
+    (tmp_path / "wp-config.php").write_text(
+        "\n".join([
+            "define('WP_DEBUG', false);",
+            "define('WP_DEBUG_LOG', false);",
+            "define('WP_DEBUG_DISPLAY', false);",
+            "define('DISALLOW_FILE_EDIT', true);",
+            "define('WP_ENVIRONMENT_TYPE', 'production');",
+            "define('SCRIPT_DEBUG', false);",
+        ]),
+        encoding="utf-8",
+    )
+    (tmp_path / "wp-content").mkdir()
+    (tmp_path / "wp-content" / "loader.php").write_text("<?php", encoding="utf-8")
+
+    result = scan(str(tmp_path))
+
+    assert not any(item["check"] == "wp_content_php_files" for item in result["results"])
+    assert not any(item["check"] == "wp_cache_php_files" for item in result["results"])
+
+
+def test_scan_runs_deep_wordpress_checks_when_enabled(tmp_path):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".gitignore").write_text("")
+    (tmp_path / "wp-config.php").write_text(
+        "\n".join([
+            "define('WP_DEBUG', false);",
+            "define('WP_DEBUG_LOG', false);",
+            "define('WP_DEBUG_DISPLAY', false);",
+            "define('DISALLOW_FILE_EDIT', true);",
+            "define('WP_ENVIRONMENT_TYPE', 'production');",
+            "define('SCRIPT_DEBUG', false);",
+        ]),
+        encoding="utf-8",
+    )
+    (tmp_path / "wp-content").mkdir()
+    (tmp_path / "wp-content" / "loader.php").write_text("<?php", encoding="utf-8")
+    cache = tmp_path / "wp-content" / "cache"
+    cache.mkdir()
+    (cache / "payload.php").write_text("<?php", encoding="utf-8")
+
+    result = scan(str(tmp_path), deep=True)
+
+    assert any(item["check"] == "wp_content_php_files" for item in result["results"])
+    assert any(item["check"] == "wp_cache_php_files" for item in result["results"])
+
+
+def test_scan_ignores_configured_checks(tmp_path):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".gitignore").write_text("")
+    (tmp_path / "backup.sql").write_text("database dump", encoding="utf-8")
+
+    result = scan(str(tmp_path), ignored_checks={"database_files"})
+
+    assert not any(item["check"] == "database_files" for item in result["results"])
+    assert result["summary"]["warn"] == 0
