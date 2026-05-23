@@ -448,7 +448,7 @@ def check_error_logs(path_obj: Path):
         return {
             "check": "error_logs",
             "status": "WARN",
-            "message": "Specific error log files found in project root; consider removing them before production deployment",
+            "message": "Error log files found in project root; review or remove them before production deployment",
             "details": ", ".join(files_found),
         }
 

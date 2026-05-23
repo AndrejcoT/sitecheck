@@ -511,7 +511,7 @@ def check_wp_suspicious_php_patterns(path_obj: Path):
         return {
             "check": "wp_suspicious_php_patterns",
             "status": "WARN",
-            "message": "Suspicious PHP patterns found in WordPress files; review them before production deployment",
+            "message": "Suspicious PHP patterns found inside wp-content/uploads; review them before production deployment",
             "details": ", ".join(files_found),
         }
 
@@ -542,7 +542,7 @@ def check_wp_content_php_files(path_obj: Path):
         return {
             "check": "wp_content_php_files",
             "status": "WARN",
-            "message": "Suspicious indicator found in wp-content PHP files; review this before production deployment",
+            "message": "Unexpected PHP file found directly inside wp-content; review before production deployment",
             "details": ", ".join(files_found),
         }
 
@@ -565,7 +565,7 @@ def check_wp_cache_php_files(path_obj: Path):
         return {
             "check": "wp_cache_php_files",
             "status": "WARN",
-            "message": "Suspicious indicator found in wp-content/cache PHP files; review this before production deployment",
+            "message": "PHP file found inside wp-content/cache; review before production deployment",
             "details": ", ".join(files_found),
         }
 

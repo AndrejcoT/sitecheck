@@ -261,6 +261,13 @@ def test_check_wp_config_sample_warn_when_present(tmp_path):
     assert result["status"] == "WARN"
 
 
+def test_check_wp_config_sample_pass_when_missing(tmp_path):
+    result = check_wp_config_sample(tmp_path)
+
+    assert result["check"] == "wp_config_sample"
+    assert result["status"] == "PASS"
+
+
 def test_check_wp_license_warn_when_present(tmp_path):
     (tmp_path / "license.txt").write_text("license", encoding="utf-8")
 
@@ -268,6 +275,13 @@ def test_check_wp_license_warn_when_present(tmp_path):
 
     assert result["check"] == "wp_license"
     assert result["status"] == "WARN"
+
+
+def test_check_wp_license_pass_when_missing(tmp_path):
+    result = check_wp_license(tmp_path)
+
+    assert result["check"] == "wp_license"
+    assert result["status"] == "PASS"
 
 
 def test_check_wp_install_files_warn_when_present(tmp_path):
@@ -278,6 +292,23 @@ def test_check_wp_install_files_warn_when_present(tmp_path):
     assert result["check"] == "wp_install_files"
     assert result["status"] == "WARN"
     assert "install.php" in result["details"]
+
+
+def test_check_wp_install_files_pass_when_missing(tmp_path):
+    result = check_wp_install_files(tmp_path)
+
+    assert result["check"] == "wp_install_files"
+    assert result["status"] == "PASS"
+
+
+def test_check_wp_install_files_warn_for_setup_php(tmp_path):
+    (tmp_path / "setup.php").write_text("<?php", encoding="utf-8")
+
+    result = check_wp_install_files(tmp_path)
+
+    assert result["check"] == "wp_install_files"
+    assert result["status"] == "WARN"
+    assert "setup.php" in result["details"]
 
 
 def test_check_wp_environment_type_pass_when_production(tmp_path):
@@ -304,6 +335,16 @@ def test_check_wp_environment_type_warn_when_development(tmp_path):
     assert result["status"] == "WARN"
 
 
+def test_check_wp_environment_type_warn_when_missing(tmp_path):
+    (tmp_path / "wp-config.php").write_text("<?php", encoding="utf-8")
+
+    result = check_wp_environment_type(tmp_path)
+
+    assert result["check"] == "wp_environment_type"
+    assert result["status"] == "WARN"
+    assert "not clearly found" in result["message"]
+
+
 def test_check_script_debug_warn_when_enabled(tmp_path):
     (tmp_path / "wp-config.php").write_text(
         "define('SCRIPT_DEBUG', true);",
@@ -316,6 +357,27 @@ def test_check_script_debug_warn_when_enabled(tmp_path):
     assert result["status"] == "WARN"
 
 
+def test_check_script_debug_pass_when_disabled(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "define('SCRIPT_DEBUG', false);",
+        encoding="utf-8",
+    )
+
+    result = check_script_debug(tmp_path)
+
+    assert result["check"] == "script_debug"
+    assert result["status"] == "PASS"
+
+
+def test_check_script_debug_pass_when_missing(tmp_path):
+    (tmp_path / "wp-config.php").write_text("<?php", encoding="utf-8")
+
+    result = check_script_debug(tmp_path)
+
+    assert result["check"] == "script_debug"
+    assert result["status"] == "PASS"
+
+
 def test_check_display_errors_warn_when_enabled(tmp_path):
     (tmp_path / "wp-config.php").write_text(
         "ini_set('display_errors', '1');",
@@ -326,6 +388,27 @@ def test_check_display_errors_warn_when_enabled(tmp_path):
 
     assert result["check"] == "display_errors"
     assert result["status"] == "WARN"
+
+
+def test_check_display_errors_pass_when_disabled(tmp_path):
+    (tmp_path / "wp-config.php").write_text(
+        "ini_set('display_errors', '0');",
+        encoding="utf-8",
+    )
+
+    result = check_display_errors(tmp_path)
+
+    assert result["check"] == "display_errors"
+    assert result["status"] == "PASS"
+
+
+def test_check_display_errors_pass_when_missing(tmp_path):
+    (tmp_path / "wp-config.php").write_text("<?php", encoding="utf-8")
+
+    result = check_display_errors(tmp_path)
+
+    assert result["check"] == "display_errors"
+    assert result["status"] == "PASS"
 
 
 def test_check_xmlrpc_warn_when_present(tmp_path):
@@ -499,6 +582,7 @@ def test_check_wp_suspicious_php_patterns_warn_for_eval_base64_decode(tmp_path):
 
     assert result["check"] == "wp_suspicious_php_patterns"
     assert result["status"] == "WARN"
+    assert result["message"] == "Suspicious PHP patterns found inside wp-content/uploads; review them before production deployment"
     assert "wp-content/uploads/loader.php" in result["details"]
 
 
@@ -543,6 +627,7 @@ def test_check_wp_content_php_files_warn_for_unexpected_php_file(tmp_path):
 
     assert result["check"] == "wp_content_php_files"
     assert result["status"] == "WARN"
+    assert result["message"] == "Unexpected PHP file found directly inside wp-content; review before production deployment"
     assert "wp-content/loader.php" in result["details"]
 
 
@@ -562,4 +647,16 @@ def test_check_wp_cache_php_files_warn_for_cache_php_file(tmp_path):
 
     assert result["check"] == "wp_cache_php_files"
     assert result["status"] == "WARN"
+    assert result["message"] == "PHP file found inside wp-content/cache; review before production deployment"
     assert "wp-content/cache/page/payload.php" in result["details"]
+
+
+def test_check_wp_cache_php_files_pass_for_non_php_cache_file(tmp_path):
+    cache = tmp_path / "wp-content" / "cache" / "page"
+    cache.mkdir(parents=True)
+    (cache / "index.html").write_text("<html></html>", encoding="utf-8")
+
+    result = check_wp_cache_php_files(tmp_path)
+
+    assert result["check"] == "wp_cache_php_files"
+    assert result["status"] == "PASS"

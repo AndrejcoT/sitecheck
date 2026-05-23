@@ -1,4 +1,5 @@
 from sitecheck.cli import exit_code, load_ignored_checks, render_json, render_text, main
+import sitecheck.cli as cli
 
 
 def test_exit_code_returns_zero_when_no_failures():
@@ -86,6 +87,115 @@ def test_render_text_outputs_failure_guidance(capsys):
 
     assert "Verdict: not_ready" in captured.out
     assert "Fix FAIL items before deployment." in captured.out
+
+
+def test_render_text_filters_results_by_only_status(capsys):
+    scan_result = {
+        "path": ".",
+        "profile": "generic",
+        "results": [
+            {"check": "path_exists", "status": "PASS", "message": "Path exists"},
+            {"check": "env_exists", "status": "WARN", "message": ".env file found"},
+            {"check": "is_directory", "status": "FAIL", "message": "Path is not a directory"},
+        ],
+        "summary": {
+            "pass": 1,
+            "warn": 1,
+            "fail": 1,
+        },
+        "verdict": "not_ready",
+    }
+
+    render_text(scan_result, only="warn")
+    captured = capsys.readouterr()
+
+    assert "WARN: .env file found" in captured.out
+    assert "PASS: Path exists" not in captured.out
+    assert "FAIL: Path is not a directory" not in captured.out
+    assert "PASS: 1" in captured.out
+    assert "WARN: 1" in captured.out
+    assert "FAIL: 1" in captured.out
+
+
+def test_render_text_outputs_message_when_only_status_has_no_matches(capsys):
+    scan_result = {
+        "path": ".",
+        "profile": "generic",
+        "results": [
+            {"check": "path_exists", "status": "PASS", "message": "Path exists"},
+        ],
+        "summary": {
+            "pass": 1,
+            "warn": 0,
+            "fail": 0,
+        },
+        "verdict": "ready",
+    }
+
+    render_text(scan_result, only="fail")
+    captured = capsys.readouterr()
+
+    assert "No FAIL results to display." in captured.out
+    assert "PASS: Path exists" not in captured.out
+    assert "PASS: 1" in captured.out
+    assert "WARN: 0" in captured.out
+    assert "FAIL: 0" in captured.out
+
+
+def test_render_text_summary_mode_hides_individual_results(capsys):
+    scan_result = {
+        "path": ".",
+        "profile": "generic",
+        "results": [
+            {"check": "path_exists", "status": "PASS", "message": "Path exists"},
+            {"check": "env_exists", "status": "WARN", "message": ".env file found"},
+        ],
+        "summary": {
+            "pass": 1,
+            "warn": 1,
+            "fail": 0,
+        },
+        "verdict": "ready_with_warnings",
+    }
+
+    render_text(scan_result, summary=True)
+    captured = capsys.readouterr()
+
+    assert "Detected profile: generic" in captured.out
+    assert "Verdict: ready_with_warnings" in captured.out
+    assert "PASS: Path exists" not in captured.out
+    assert "WARN: .env file found" not in captured.out
+    assert "Summary:" in captured.out
+    assert "PASS: 1" in captured.out
+    assert "WARN: 1" in captured.out
+    assert "FAIL: 0" in captured.out
+    assert "Review WARN items before deployment." in captured.out
+
+
+def test_render_text_summary_mode_ignores_only_filter_visibly(capsys):
+    scan_result = {
+        "path": ".",
+        "profile": "generic",
+        "results": [
+            {"check": "path_exists", "status": "PASS", "message": "Path exists"},
+        ],
+        "summary": {
+            "pass": 1,
+            "warn": 0,
+            "fail": 0,
+        },
+        "verdict": "ready",
+    }
+
+    render_text(scan_result, only="warn", summary=True)
+    captured = capsys.readouterr()
+
+    assert "No WARN results to display." not in captured.out
+    assert "PASS: Path exists" not in captured.out
+    assert "Summary:" in captured.out
+    assert "PASS: 1" in captured.out
+    assert "WARN: 0" in captured.out
+    assert "FAIL: 0" in captured.out
 
 
 def test_render_json_outputs_valid_json(capsys):
@@ -183,6 +293,170 @@ def test_main_returns_one_when_scan_path_is_missing(capsys):
 
     assert result == 1
     assert "Usage: sitecheck scan <path>" in captured.out
+
+
+def test_main_scan_passes_only_filter_to_text_output(tmp_path, capsys, monkeypatch):
+    def fake_scan(path, deep=False, ignored_checks=None):
+        return {
+            "path": path,
+            "profile": "generic",
+            "results": [
+                {"check": "path_exists", "status": "PASS", "message": "Path exists"},
+                {"check": "env_exists", "status": "WARN", "message": ".env file found"},
+            ],
+            "summary": {
+                "pass": 1,
+                "warn": 1,
+                "fail": 0,
+            },
+            "verdict": "ready_with_warnings",
+        }
+
+    monkeypatch.setattr(cli, "scan", fake_scan)
+
+    result = main(["scan", str(tmp_path), "--only", "warn"])
+    captured = capsys.readouterr()
+
+    assert result == 0
+    assert "WARN: .env file found" in captured.out
+    assert "PASS: Path exists" not in captured.out
+
+
+def test_main_scan_summary_mode_hides_individual_results(tmp_path, capsys, monkeypatch):
+    def fake_scan(path, deep=False, ignored_checks=None):
+        return {
+            "path": path,
+            "profile": "generic",
+            "results": [
+                {"check": "path_exists", "status": "PASS", "message": "Path exists"},
+                {"check": "env_exists", "status": "WARN", "message": ".env file found"},
+            ],
+            "summary": {
+                "pass": 1,
+                "warn": 1,
+                "fail": 0,
+            },
+            "verdict": "ready_with_warnings",
+        }
+
+    monkeypatch.setattr(cli, "scan", fake_scan)
+
+    result = main(["scan", str(tmp_path), "--summary"])
+    captured = capsys.readouterr()
+
+    assert result == 0
+    assert "Detected profile: generic" in captured.out
+    assert "Verdict: ready_with_warnings" in captured.out
+    assert "PASS: Path exists" not in captured.out
+    assert "WARN: .env file found" not in captured.out
+    assert "Summary:" in captured.out
+    assert "PASS: 1" in captured.out
+    assert "WARN: 1" in captured.out
+    assert "FAIL: 0" in captured.out
+    assert "Review WARN items before deployment." in captured.out
+
+
+def test_main_scan_json_ignores_summary_flag(tmp_path, capsys, monkeypatch):
+    def fake_scan(path, deep=False, ignored_checks=None):
+        return {
+            "path": path,
+            "profile": "generic",
+            "results": [
+                {"check": "path_exists", "status": "PASS", "message": "Path exists"},
+            ],
+            "summary": {
+                "pass": 1,
+                "warn": 0,
+                "fail": 0,
+            },
+            "verdict": "ready",
+        }
+
+    monkeypatch.setattr(cli, "scan", fake_scan)
+
+    result = main(["scan", str(tmp_path), "--json", "--summary"])
+    captured = capsys.readouterr()
+
+    assert result == 0
+    assert '"results"' in captured.out
+    assert '"message": "Path exists"' in captured.out
+    assert '"summary"' in captured.out
+
+
+def test_main_scan_deep_summary_still_runs_deep_checks(tmp_path, capsys, monkeypatch):
+    captured_deep_values = []
+
+    def fake_scan(path, deep=False, ignored_checks=None):
+        captured_deep_values.append(deep)
+        return {
+            "path": path,
+            "profile": "wordpress",
+            "results": [
+                {"check": "wp_content_php_files", "status": "WARN", "message": "PHP files found"},
+            ],
+            "summary": {
+                "pass": 0,
+                "warn": 1,
+                "fail": 0,
+            },
+            "verdict": "ready_with_warnings",
+        }
+
+    monkeypatch.setattr(cli, "scan", fake_scan)
+
+    result = main(["scan", str(tmp_path), "--deep", "--summary"])
+    captured = capsys.readouterr()
+
+    assert result == 0
+    assert captured_deep_values == [True]
+    assert "WARN: PHP files found" not in captured.out
+    assert "WARN: 1" in captured.out
+
+
+def test_main_scan_only_summary_hides_individual_results(tmp_path, capsys, monkeypatch):
+    def fake_scan(path, deep=False, ignored_checks=None):
+        return {
+            "path": path,
+            "profile": "generic",
+            "results": [
+                {"check": "path_exists", "status": "PASS", "message": "Path exists"},
+            ],
+            "summary": {
+                "pass": 1,
+                "warn": 0,
+                "fail": 0,
+            },
+            "verdict": "ready",
+        }
+
+    monkeypatch.setattr(cli, "scan", fake_scan)
+
+    result = main(["scan", str(tmp_path), "--only", "warn", "--summary"])
+    captured = capsys.readouterr()
+
+    assert result == 0
+    assert "No WARN results to display." not in captured.out
+    assert "PASS: Path exists" not in captured.out
+    assert "Summary:" in captured.out
+    assert "PASS: 1" in captured.out
+    assert "WARN: 0" in captured.out
+    assert "FAIL: 0" in captured.out
+
+
+def test_main_returns_one_when_only_value_is_missing(tmp_path, capsys):
+    result = main(["scan", str(tmp_path), "--only"])
+    captured = capsys.readouterr()
+
+    assert result == 1
+    assert "Error: --only requires one of: pass, warn, fail" in captured.out
+
+
+def test_main_returns_one_when_only_value_is_invalid(tmp_path, capsys):
+    result = main(["scan", str(tmp_path), "--only", "error"])
+    captured = capsys.readouterr()
+
+    assert result == 1
+    assert "Error: --only must be one of: pass, warn, fail" in captured.out
 
 
 def test_main_scan_runs_deep_checks_when_deep_flag_is_used(tmp_path, capsys):

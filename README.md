@@ -8,62 +8,44 @@ It scans a project folder and reports common deployment risks before a site is s
 
 ## Why This Exists
 
-Website deployments often rely on memory and manual checklists. `sitecheck` is meant to make basic deployment hygiene repeatable by catching common issues such as debug settings, exposed development files, missing project files, and risky project-root artifacts.
+Website deployments often rely on memory and manual checklists. `sitecheck` makes basic deployment hygiene repeatable by catching common issues such as debug settings, exposed development files, missing project files, and risky project-root artifacts.
 
 It is also a practical DevOps learning project that can grow gradually without turning into a large platform too early.
 
 ## What It Checks
 
-Generic website checks:
+### Generic Checks
 
-- path exists
-- path is a directory
-- Git repository is present
-- `.gitignore` is present
-- `.env` is protected by `.gitignore` when present
-- suspicious backup or archive files in the project root
-- public development files such as `phpinfo.php`, `debug.php`, and `test.php`
-- external redirects in `.htaccess`
-- database files in the project root
-- Composer and npm lockfile consistency
-- `node_modules` in the project root
-- editor directories such as `.idea` and `.vscode`
-- system files such as `.DS_Store` and `Thumbs.db`
-- debug, temporary, or old files in the project root
-- specific error log files
+| Check area | What it reviews |
+| --- | --- |
+| Path validation | Path exists and is a directory |
+| Git hygiene | Git repository, `.gitignore`, and `.env` handling |
+| Root risky files | Backup/archive files, public development files, database files, and `.htaccess` external redirects |
+| Dependency files | Composer and npm lockfile consistency |
+| Local artifacts | `node_modules`, editor directories, system files, debug/temp files, and error logs |
 
-WordPress checks:
+### WordPress Checks
 
-- `wp-config.php`
-- `wp-content`
-- `readme.html`
-- `WP_DEBUG`
-- `WP_DEBUG_LOG`
-- `WP_DEBUG_DISPLAY`
-- `DISALLOW_FILE_EDIT`
-- `xmlrpc.php`
-- `wp-config-sample.php`
-- `license.txt`
-- possible install files
-- `WP_ENVIRONMENT_TYPE`
-- `SCRIPT_DEBUG`
-- `display_errors`
-- `wp-content/debug.log`
-- PHP files inside `wp-content/uploads`
-- disguised PHP files inside `wp-content/plugins`
-- suspicious PHP patterns inside `wp-content/uploads`
-- deep scan: unexpected PHP files directly inside `wp-content`
-- deep scan: PHP files inside `wp-content/cache`
+| Check area | What it reviews |
+| --- | --- |
+| WordPress structure | `wp-config.php`, `wp-content`, and partial WordPress detection |
+| Public WordPress files | `readme.html`, `xmlrpc.php`, `wp-config-sample.php`, `license.txt`, and install files |
+| Debug settings | `WP_DEBUG`, `WP_DEBUG_LOG`, `WP_DEBUG_DISPLAY`, `SCRIPT_DEBUG`, and `display_errors` |
+| Hardening settings | `DISALLOW_FILE_EDIT` and `WP_ENVIRONMENT_TYPE` |
+| Suspicious indicators | `wp-content/debug.log`, PHP files inside uploads, disguised PHP files in plugins, and suspicious PHP patterns in uploads |
+| Deep scan only | Unexpected PHP files directly inside `wp-content` and PHP files inside `wp-content/cache` |
 
 ## Severity Rules
 
-`sitecheck` currently uses a conservative severity model:
+`sitecheck` uses a conservative severity model:
 
-- `PASS` means the check found no issue.
-- `WARN` means a possible deployment risk was found, but deployment may still be possible.
-- `FAIL` means a hard blocker was found, such as an invalid path or missing required project structure.
+| Status | Meaning |
+| --- | --- |
+| `PASS` | The check found no issue. |
+| `WARN` | A possible deployment risk was found, but deployment may still be possible. |
+| `FAIL` | A hard blocker was found, such as an invalid path or missing required project structure. |
 
-Future versions may promote high-risk warnings to failures, especially for exposed secrets, database dumps, public debug output, or production-dangerous WordPress settings.
+Sitecheck reports indicators, not proof of compromise. It avoids wording such as "malware detected" because filenames and code patterns can have legitimate explanations.
 
 ## Usage
 
@@ -99,10 +81,45 @@ sitecheck scan . --deep
 
 ## Output Modes
 
-Scan the current directory and output JSON:
+Human-readable output is the default:
+
+```text
+Detected profile: wordpress
+Verdict: ready_with_warnings
+
+WARN: PHP files found inside wp-content/uploads; review them before production deployment
+  Details:
+    - wp-content/uploads/2026/05/logo.png.php
+    - wp-content/uploads/2026/05/shell.php
+
+Summary:
+PASS: 27
+WARN: 6
+FAIL: 0
+
+Review WARN items before deployment.
+```
+
+JSON output is available for automation:
 
 ```bash
 sitecheck scan . --json
+```
+
+Example JSON shape:
+
+```json
+{
+  "path": ".",
+  "profile": "wordpress",
+  "results": [],
+  "summary": {
+    "pass": 0,
+    "warn": 0,
+    "fail": 0
+  },
+  "verdict": "ready"
+}
 ```
 
 ## Configuration
@@ -113,6 +130,8 @@ Ignore checks with `.sitecheck.toml` in the scanned project root:
 [ignore]
 checks = ["xmlrpc", "node_modules"]
 ```
+
+Ignored checks are omitted from results and summary counts.
 
 ## Testing
 
@@ -128,3 +147,18 @@ On Windows/OneDrive setups where pytest temp folders can be locked, use a fresh 
 $stamp = Get-Date -Format 'yyyyMMddHHmmssfff'
 python -m pytest --basetemp ".pytest_tmp_$stamp"
 ```
+
+## Continuous Integration
+
+GitHub Actions runs the test suite on push and pull request events.
+
+## Project Status
+
+This project is pre-release and intentionally small. The current focus is fast, low-noise deployment checks with optional deeper WordPress checks behind `--deep`.
+
+## Roadmap
+
+- Improve WordPress profile detection further as real projects expose edge cases.
+- Add configuration options only where they reduce noise without hiding important failures.
+- Keep default scans fast and conservative.
+- Keep deeper or noisier checks behind explicit flags.

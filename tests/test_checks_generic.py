@@ -301,6 +301,16 @@ def test_check_package_files_warn_when_lock_exists_without_json(tmp_path):
     assert result["status"] == "WARN"
 
 
+def test_check_package_files_pass_when_files_are_consistent(tmp_path):
+    (tmp_path / "package-lock.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "package.json").write_text("{}", encoding="utf-8")
+
+    result = check_package_files(tmp_path)
+
+    assert result["check"] == "package_files"
+    assert result["status"] == "PASS"
+
+
 def test_check_system_files_warn_when_ds_store_exists(tmp_path):
     (tmp_path / ".DS_Store").write_text("system file", encoding="utf-8")
 
@@ -311,6 +321,25 @@ def test_check_system_files_warn_when_ds_store_exists(tmp_path):
     assert ".DS_Store" in result["details"]
 
 
+def test_check_system_files_pass_when_no_system_files_exist(tmp_path):
+    (tmp_path / "index.php").write_text("<?php", encoding="utf-8")
+
+    result = check_system_files(tmp_path)
+
+    assert result["check"] == "system_files"
+    assert result["status"] == "PASS"
+
+
+def test_check_system_files_warn_when_thumbs_db_exists(tmp_path):
+    (tmp_path / "Thumbs.db").write_text("system file", encoding="utf-8")
+
+    result = check_system_files(tmp_path)
+
+    assert result["check"] == "system_files"
+    assert result["status"] == "WARN"
+    assert "Thumbs.db" in result["details"]
+
+
 def test_check_node_modules_warn_when_directory_exists(tmp_path):
     (tmp_path / "node_modules").mkdir()
 
@@ -318,6 +347,13 @@ def test_check_node_modules_warn_when_directory_exists(tmp_path):
 
     assert result["check"] == "node_modules"
     assert result["status"] == "WARN"
+
+
+def test_check_node_modules_pass_when_directory_missing(tmp_path):
+    result = check_node_modules(tmp_path)
+
+    assert result["check"] == "node_modules"
+    assert result["status"] == "PASS"
 
 
 def test_check_editor_directories_warn_when_vscode_exists(tmp_path):
@@ -330,6 +366,23 @@ def test_check_editor_directories_warn_when_vscode_exists(tmp_path):
     assert ".vscode" in result["details"]
 
 
+def test_check_editor_directories_pass_when_no_editor_directories_exist(tmp_path):
+    result = check_editor_directories(tmp_path)
+
+    assert result["check"] == "editor_directories"
+    assert result["status"] == "PASS"
+
+
+def test_check_editor_directories_warn_when_idea_exists(tmp_path):
+    (tmp_path / ".idea").mkdir()
+
+    result = check_editor_directories(tmp_path)
+
+    assert result["check"] == "editor_directories"
+    assert result["status"] == "WARN"
+    assert ".idea" in result["details"]
+
+
 def test_check_error_logs_warn_for_error_log_file(tmp_path):
     (tmp_path / "error_log").write_text("error log", encoding="utf-8")
 
@@ -338,6 +391,26 @@ def test_check_error_logs_warn_for_error_log_file(tmp_path):
     assert result["check"] == "error_logs"
     assert result["status"] == "WARN"
     assert "error_log" in result["details"]
+
+
+def test_check_error_logs_pass_when_no_error_logs_exist(tmp_path):
+    (tmp_path / "index.php").write_text("<?php", encoding="utf-8")
+
+    result = check_error_logs(tmp_path)
+
+    assert result["check"] == "error_logs"
+    assert result["status"] == "PASS"
+
+
+def test_check_error_logs_warn_for_debug_log_file(tmp_path):
+    (tmp_path / "debug.log").write_text("debug log", encoding="utf-8")
+
+    result = check_error_logs(tmp_path)
+
+    assert result["check"] == "error_logs"
+    assert result["status"] == "WARN"
+    assert result["message"] == "Error log files found in project root; review or remove them before production deployment"
+    assert "debug.log" in result["details"]
 
 
 def test_check_database_files_pass_when_no_database_files_exist(tmp_path):
