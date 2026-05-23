@@ -15,13 +15,18 @@ The project already includes:
 - structured scan results
 - human-readable terminal output
 - JSON output
+- text output filtering with `--only`
+- quick summary text output with `--summary`
 - summary counts
 - scan verdicts
 - exit-code behavior
+- optional deep WordPress checks with `--deep`
+- `.sitecheck.toml` ignore support
 - automated tests with `pytest`
+- focused test files for CLI, scanner, profiles, generic checks, and WordPress checks
 - GitHub Actions CI for push and pull requests
 
-The project is no longer only in the foundation stage. The foundation is working, and the next focus is improving quality, usefulness, and maintainability.
+The project is no longer only in the foundation stage. The foundation is working, the test suite is broad, and the next focus is improving polish, documentation, and practical usefulness without making the CLI noisy.
 
 ---
 
@@ -30,24 +35,15 @@ The project is no longer only in the foundation stage. The foundation is working
 ### Project cleanup and documentation
 
 - Keep README accurate with current features
-- Add a real `CHANGELOG.md`
 - Add a basic `CONTRIBUTING.md`
 - Improve docs and examples
 - Keep weekly devlogs updated
 
 ### Test organization
 
-- Split the large test file into smaller focused files
-- Keep existing test behavior unchanged during the split
-- Make tests easier to navigate as the project grows
-
-Possible test split:
-
-- `tests/test_cli.py`
-- `tests/test_scanner.py`
-- `tests/test_profiles.py`
-- `tests/test_checks_generic.py`
-- `tests/test_checks_wordpress.py`
+- Keep focused test files easy to navigate
+- Add regression tests for every new CLI flag and check
+- Keep tests green after documentation and cleanup work
 
 ### Existing check improvements
 
@@ -77,8 +73,8 @@ Possible test split:
 
 ### Developer experience
 
-- Improve CLI help text
-- Improve output clarity
+- Keep CLI help text accurate as flags are added
+- Improve output clarity without changing scan data
 - Add more README examples
 - Add example project folders for testing/demo purposes
 - Keep CLI help and version output accurate
@@ -89,8 +85,8 @@ Possible test split:
 
 ### Configuration support
 
-- Add optional config file support
-- Allow users to ignore selected checks
+- Expand optional config file support if a real need appears
+- Keep ignore-check behavior documented and predictable
 - Allow users to adjust warning behavior
 - Keep default behavior simple
 

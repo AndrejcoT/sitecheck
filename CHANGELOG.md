@@ -38,6 +38,9 @@ This project does not have official releases yet. Current changes are tracked un
 - Added deep WordPress checks for unexpected PHP files directly inside `wp-content`.
 - Added deep WordPress checks for PHP files inside `wp-content/cache`.
 - Added `.sitecheck.toml` support for ignoring check IDs.
+- Added `--only <status>` text output filtering for `pass`, `warn`, and `fail` results.
+- Added `--summary` text output mode for quick profile, verdict, summary counts, and verdict note output.
+- Added CLI tests for `--only`, `--summary`, JSON interaction, deep scan interaction, and validation errors.
 
 ### Changed
 
@@ -49,6 +52,8 @@ This project does not have official releases yet. Current changes are tracked un
 - Improved WordPress profile detection for partial WordPress projects.
 - Improved text output details formatting for multi-item details.
 - Improved text output with verdict guidance for warnings and failures.
+- Improved CLI help examples to include output filtering and summary mode.
+- Split automated tests into focused files for CLI, scanner, profiles, generic checks, and WordPress checks.
 
 ### Fixed
 

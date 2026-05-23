@@ -4,7 +4,7 @@
 
 `sitecheck` is a Python CLI pre-deployment checker for websites and WordPress projects.
 
-It scans a project folder and reports common deployment risks before a site is shipped. Results are returned as `PASS`, `WARN`, and `FAIL`, with both human-readable output and JSON output available.
+It scans a project folder and reports common deployment risks before a site is shipped. Results are returned as `PASS`, `WARN`, and `FAIL`, with both human-readable output and JSON output available. Text output can also be narrowed with `--only` or shortened with `--summary` when a quick terminal view is enough.
 
 ## Why This Exists
 
@@ -79,6 +79,18 @@ Run deeper, noisier WordPress checks:
 sitecheck scan . --deep
 ```
 
+Show only one status in text output:
+
+```bash
+sitecheck scan . --only warn
+```
+
+Show only the profile, verdict, summary counts, and verdict note:
+
+```bash
+sitecheck scan . --summary
+```
+
 ## Output Modes
 
 Human-readable output is the default:
@@ -100,11 +112,41 @@ FAIL: 0
 Review WARN items before deployment.
 ```
 
+Filter human-readable output by status:
+
+```bash
+sitecheck scan . --only fail
+```
+
+`--only` does not change the scan result, summary counts, verdict, or exit code. It only hides non-matching individual result lines in text output.
+
+Use summary mode for a quick overview:
+
+```bash
+sitecheck scan . --summary
+```
+
+Example summary output:
+
+```text
+Detected profile: generic
+Verdict: ready
+
+Summary:
+PASS: 16
+WARN: 0
+FAIL: 0
+```
+
+`--summary` changes text output only. The full scan still runs, summary counts are unchanged, and the exit code still depends on whether any `FAIL` results exist.
+
 JSON output is available for automation:
 
 ```bash
 sitecheck scan . --json
 ```
+
+JSON output always returns the full scan data. Output display flags such as `--only` and `--summary` do not filter JSON results.
 
 Example JSON shape:
 
@@ -154,11 +196,12 @@ GitHub Actions runs the test suite on push and pull request events.
 
 ## Project Status
 
-This project is pre-release and intentionally small. The current focus is fast, low-noise deployment checks with optional deeper WordPress checks behind `--deep`.
+This project is pre-release and intentionally small. The current focus is fast, low-noise deployment checks with optional deeper WordPress checks behind `--deep`. Recent work has focused on keeping scan data complete while making terminal output easier to control with `--only` and `--summary`.
 
 ## Roadmap
 
 - Improve WordPress profile detection further as real projects expose edge cases.
-- Add configuration options only where they reduce noise without hiding important failures.
+- Expand configuration only where it reduces noise without hiding important failures.
 - Keep default scans fast and conservative.
 - Keep deeper or noisier checks behind explicit flags.
+- Keep text output useful for both detailed review and quick summaries.
