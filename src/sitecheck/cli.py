@@ -56,7 +56,6 @@ def show_help():
     print("  sitecheck scan <path>")
     print("  sitecheck scan <path> --json")
     print("  sitecheck scan <path> --deep")
-    print("  sitecheck scan <path> --summary")
     print("  sitecheck scan <path> --only warn")
     print()
     print("Commands:")
@@ -69,7 +68,6 @@ def show_help():
     print("Scan options:")
     print("  --json           Output scan results as JSON for automation")
     print("  --deep           Run deeper, noisier WordPress checks")
-    print("  --summary        Only display profile, verdict, summary counts, and verdict note")
     print("  --only <status>  Only display results with the selected status: pass, warn, or fail")
     print()
     print("Examples:")
@@ -77,39 +75,36 @@ def show_help():
     print("  sitecheck scan ./my-site")
     print("  sitecheck scan ./my-site --json")
     print("  sitecheck scan ./my-site --deep")
-    print("  sitecheck scan ./my-site --summary")
     print("  sitecheck scan ./my-site --only warn")
     print("  sitecheck scan ./my-site --only fail")
     print()
 
 
-def render_text(scan_result, only=None, summary=False):
+def render_text(scan_result, only=None, summarry=False):
     print(f"Detected profile: {scan_result['profile']}")
     if "verdict" in scan_result:
         print(f"Verdict: {scan_result['verdict']}")
     print()
 
-    if not summary:
-        results = scan_result["results"]
+    results = scan_result["results"]
 
-        if only:
-            results = [
-                result for result in results
-                if result["status"].lower() == only
-            ]
+    if only:
+        results = [
+            result for result in results
+            if result["status"].lower() == only
+        ]
 
-        if only and not results:
-            print(f"No {only.upper()} results to display.")
-        else:
-            for result in results:
-                print(f"{result['status']}: {result['message']}")
-                if "details" in result:
-                    print("  Details:")
-                    for item in _detail_items(result["details"]):
-                        print(f"    - {item}")
+    if only and not results:
+        print(f"No {only.upper()} results to display.")
+    else:
+        for result in results:
+            print(f"{result['status']}: {result['message']}")
+            if "details" in result:
+                print("  Details:")
+                for item in _detail_items(result["details"]):
+                    print(f"    - {item}")
 
-        print()
-
+    print()
     print("Summary:")
     print(f"PASS: {scan_result['summary']['pass']}")
     print(f"WARN: {scan_result['summary']['warn']}")
@@ -159,7 +154,6 @@ def main(args=None):
         path = args[1]
         json_mode = "--json" in args[2:]
         deep_mode = "--deep" in args[2:]
-        summary_mode = "--summary" in args[2:]
 
         only_filter = None
 
@@ -183,7 +177,7 @@ def main(args=None):
         if json_mode:
             render_json(scan_result)
         else:
-            render_text(scan_result, only=only_filter, summary=summary_mode)
+            render_text(scan_result, only=only_filter)
 
         return exit_code(scan_result)
 
